@@ -1,0 +1,5 @@
+node_modules
+*.DS_Store
+creds.data
+mycalgarybus-aedc5-firebase-adminsdk-irfqg-a96ee59ce2.json
+.env
