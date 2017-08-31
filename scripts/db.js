@@ -1,9 +1,9 @@
 var firebaseAdmin = require("firebase-admin");
-var serviceAccount = require("./../mycalgarybus-aedc5-firebase-adminsdk-irfqg-a96ee59ce2.json");
+var serviceAccount = require(process.env.serviceFile);
 
 firebaseAdmin.initializeApp({
     credential: firebaseAdmin.credential.cert(serviceAccount),
-    databaseURL: "https://mycalgarybus-aedc5.firebaseio.com/"
+    databaseURL: process.env.fireBaseUrl
 });
 
 var db = firebaseAdmin.database();
