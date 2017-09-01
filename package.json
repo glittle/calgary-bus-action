@@ -1,43 +1,44 @@
 {
-    "name": "calgarybus-action",
-    "description": "Get Calgary bus times",
-    "version": "0.0.1",
-    "private": true,
-    "license": "Apache-2.0",
-    "author": "Glen Little",
-    "engines": {
-        "node": "~4.2"
-    },
-    "scripts": {
-        "lint": "semistandard --fix \"**/*.js\"",
-        "start": "node app.js",
-        "monitor": "nodemon app.js",
-        "deploy": "gcloud app deploy",
-        "test": "npm run lint"
-    },
-    "semistandard": {
-        "globals": [
-            "after",
-            "afterEach",
-            "before",
-            "beforeEach",
-            "describe",
-            "it"
-        ]
-    },
-    "dependencies": {
-        "actions-on-google": "^1.0.0",
-        "body-parser": "^1.15.2",
-        "cheerio": "^1.0.0-rc.2",
-        "dotenv": "^4.0.0",
-        "moment": "^2.13.0",
-        "moment-timezone": "^0.5.4",
-        "express": "^4.13.4",
-        "firebase-admin": "^5.1.0",
-        "gtfs-realtime-bindings": "^0.0.4",
-        "node-rest-client": "^3.1.0"
-    },
-    "devDependencies": {
-        "semistandard": "^11.0.0"
-    }
+  "name": "calgarybus-action",
+  "description": "Get Calgary bus times",
+  "version": "0.0.1",
+  "private": true,
+  "license": "Apache-2.0",
+  "author": "Glen Little",
+  "engines": {
+    "node": "~4.2"
+  },
+  "scripts": {
+    "lint": "semistandard --fix \"**/*.js\"",
+    "start": "node app.js",
+    "monitor": "nodemon app.js",
+    "deploy": "gcloud app deploy",
+    "test": "npm run lint"
+  },
+  "semistandard": {
+    "globals": [
+      "after",
+      "afterEach",
+      "before",
+      "beforeEach",
+      "describe",
+      "it"
+    ]
+  },
+  "dependencies": {
+    "actions-on-google": "^1.0.0",
+    "body-parser": "^1.15.2",
+    "cheerio": "^1.0.0-rc.2",
+    "dotenv": "^4.0.0",
+    "express": "^4.13.4",
+    "firebase-admin": "^5.1.0",
+    "gtfs-realtime-bindings": "^0.0.4",
+    "moment": "^2.13.0",
+    "moment-timezone": "^0.5.4",
+    "node-rest-client": "^3.1.0",
+    "node-rest-client-promise": "^3.0.0"
+  },
+  "devDependencies": {
+    "semistandard": "^11.0.0"
+  }
 }
