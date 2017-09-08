@@ -2,6 +2,7 @@ const App = require('actions-on-google').ApiAiApp;
 
 const externalInfo = require('./externalInfo');
 const general = require('./general');
+const transit = require('./transitKnowledge');
 const moment = require('moment-timezone');
 const dbHelper = require('./db');
 
@@ -15,7 +16,7 @@ var knownUsers = null;
 dbHelper.knownUsersRef.once('value', function(snapshot) {
     knownUsers = snapshot.val() || {};
     console.log('initial load from db', Object.keys(knownUsers).length, 'users.');
-    console.log(knownUsers);
+    // console.log(knownUsers);
 });
 
 
@@ -83,13 +84,13 @@ function handlePost(request, response) {
         I can tell you when the next bus is coming to the stop you are currently at. 
         I'll remember the stop numbers you tell me, and when you ask for them so that next time you come back I can tell you the answer immediately!
         
-        Please note, I'm a Calgarian and can only help out in Calgary, Canada for now!
+        Please note, I'm a Calgarian and can only help out in Calgary, Canada with what Calgary Transit tells me!
         
         What stop number do you want to hear about?`
         ], [
             `Hi!  I can tell you when the next bus is coming to the stop you are currently at. I'll remember the stop numbers you tell me, and when you ask for them so that next time you come back I can tell you the answer immediately!
         
-Please note, I'm a Calgarian and can only help out in Calgary, Canada for now.
+Please note, I'm a Calgarian and can only help out in Calgary, Canada with what Calgary Transit tells me.
         
 What stop number do you want to hear about?`
         ]);
@@ -142,9 +143,6 @@ What stop number do you want to hear about?`
             console.log(inRange);
 
             if (inRange.length) {
-                // how to do multiple??
-                // var event = inRange[0];
-                // announceStopMultiple([event.stop]);
                 var stops = inRange
                     .map(e => e.stop.toString())
                     .filter((el, i, a) => i === a.indexOf(el));
@@ -180,7 +178,7 @@ What stop number do you want to hear about?`
         var requests = userInfo.requests = userInfo.requests.filter(r => JSON.parse(r).bus.toString() !== which);
         userRef.update({ requests: requests });
 
-        ask([`Done. I've forgotten about bus ${which}.`], [`Done. I've forgotten about bus ${which}.`])
+        ask([`Done. I've forgotten about route ${which}.`], [`Done. I've forgotten about route ${which}.`])
     }
 
     function forgetStop() {
@@ -192,61 +190,61 @@ What stop number do you want to hear about?`
         ask([`Done. I've forgotten about stop number ${spacedOut(which)}.`], [`Done. I've forgotten about stop number ${which}.`])
     }
 
-    function announceStop1(stop) {
-        stop = stop || body.result.parameters.stopNumber;
+    // function announceStop1(stop) {
+    //     stop = stop || body.result.parameters.stopNumber;
 
-        var speech = [];
-        var text = [];
+    //     var speech = [];
+    //     var text = [];
 
-        // speech.push(`You asked for ${spacedOut('' + stop)}.`);
-        // text.push(`You asked for #${stop}.`)
+    //     // speech.push(`You asked for ${spacedOut('' + stop)}.`);
+    //     // text.push(`You asked for #${stop}.`)
 
-        externalInfo.getBusPage(stop, function(info) {
-            //Aug 30 2017 - 21:46:00 *
-            console.log('result', info);
+    //     externalInfo.getBusPage(stop, function(info) {
+    //         //Aug 30 2017 - 21:46:00 *
+    //         console.log('call result', info);
 
-            if (info.error) {
-                text.push(info.error);
-                speech.push(info.error);
-                ask(speech, text);
-                return;
-            }
+    //         if (info.error) {
+    //             text.push(info.error);
+    //             speech.push(info.error);
+    //             ask(speech, text);
+    //             return;
+    //         }
 
-            var when = info.when;
+    //         var when = info.when;
 
-            var realtime = when.slice(-1) === '*';
-            if (realtime) {
-                when = when.slice(0, -2);
-            }
+    //         var realtime = when.slice(-1) === '*';
+    //         if (realtime) {
+    //             when = when.slice(0, -2);
+    //         }
 
-            const next = moment.tz(when, 'MMM DD YYYY - HH:mm:ss', true, calgaryTimeZone)
+    //         const next = moment.tz(when, 'MMM DD YYYY - HH:mm:ss', true, calgaryTimeZone)
 
-            const now = moment.tz(calgaryTimeZone);
+    //         const now = moment.tz(calgaryTimeZone);
 
-            console.log(now.format())
-            console.log(next.format())
+    //         console.log(now.format())
+    //         console.log(next.format())
 
-            const howSoonMin = next.diff(now, 'minutes');
-            console.log('how soon', howSoonMin)
-            if (howSoonMin > 120) {
-                text.push(`Bus ${info.bus} isn't scheduled at that stop within the next couple of hours.`)
-                speech.push(`Bus ${info.bus} isn't scheduled at that stop within the next couple of hours.`)
+    //         const howSoonMin = next.diff(now, 'minutes');
+    //         // console.log('how soon', howSoonMin)
+    //         if (howSoonMin > 120) {
+    //             text.push(`${getRouteName(info.bus)} isn't scheduled at that stop within the next couple of hours.`)
+    //             speech.push(`${getRouteName(info.bus)} isn't scheduled at that stop within the next couple of hours.`)
 
-                ask(speech, text);
-                return;
-            }
+    //             ask(speech, text);
+    //             return;
+    //         }
 
-            const howSoon = now.to(next);
-            console.log(howSoon);
+    //         const howSoon = now.to(next);
+    //         // console.log(howSoon);
 
-            text.push(`Bus ${info.bus} is ${realtime ? 'leaving' : 'scheduled to leave'} stop ${stop} ${howSoon}.`)
-            speech.push(`Bus ${info.bus} is ${realtime ? 'leaving' : 'scheduled to leave'} stop ${spacedOut(stop)} ${howSoon}.`)
+    //         text.push(`${getRouteName(info.bus)} is ${realtime ? 'leaving' : 'scheduled to leave'} ${getStopName(stop)} ${howSoon}.`)
+    //         speech.push(`${getRouteName(info.bus)} is ${realtime ? 'leaving' : 'scheduled to leave'} ${getStopName(stop, true)} ${howSoon}.`)
 
-            storeRequestTime(now, stop, info.bus);
+    //         storeRequestTime(now, stop, info.bus);
 
-            ask(speech, text);
-        });
-    }
+    //         ask(speech, text);
+    //     });
+    // }
 
     function announceStopMultiple(stops) {
         var speech = [];
@@ -278,7 +276,7 @@ What stop number do you want to hear about?`
                 const next = moment.tz(when, 'MMM DD YYYY - HH:mm:ss', true, calgaryTimeZone)
 
 
-                console.log(next.format())
+                // console.log(next.format())
 
                 info.howSoonMin = next.diff(now, 'minutes');
                 info.howSoon = now.to(next);
@@ -286,7 +284,7 @@ What stop number do you want to hear about?`
 
 
             infoList.sort(function(a, b) {
-                return a.howSoonMin < b.howSoonMin ? -1 : 1;
+                return (a.howSoonMin || 999) < (b.howSoonMin || 999) ? -1 : 1;
             });
 
 
@@ -294,23 +292,77 @@ What stop number do you want to hear about?`
                 const howSoonMin = info.howSoonMin;
                 const howSoon = info.howSoon;
 
-                console.log(howSoon);
-                console.log('how soon', howSoonMin)
+                // console.log(howSoon);
+                // console.log('how soon', howSoonMin)
                 if (howSoonMin > 120) {
-                    text.push(`Bus ${info.bus} isn't scheduled at that stop within the next couple of hours.`)
-                    speech.push(`Bus ${info.bus} isn't scheduled at that stop within the next couple of hours.`)
+                    text.push(`${getRouteName(info.bus)} isn't scheduled at that stop within the next couple of hours.`)
+                    speech.push(`${getRouteName(info.bus, true)} isn't scheduled at that stop within the next couple of hours.`)
                     return;
                 }
 
-                text.push(`Bus ${info.bus} is ${info.realtime ? 'leaving' : 'scheduled to leave'} stop ${info.stop} ${howSoon}.`)
-                speech.push(`Bus ${info.bus} is ${info.realtime ? 'leaving' : 'scheduled to leave'} stop ${spacedOut(info.stop)} ${howSoon}.`)
+                text.push(`${getRouteName(info.bus)} is ${info.realtime ? 'leaving' : 'scheduled to leave'} ${getStopName(info.stop)} ${howSoon}.`)
+                speech.push(`${getRouteName(info.bus, true)} is ${info.realtime ? 'leaving' : 'scheduled to leave'} ${getStopName(info.stop, true)} ${howSoon}.`)
 
                 storeRequestTime(now, info.stop, info.bus);
-
             });
 
             ask(speech, text);
         });
+    }
+
+    function getRouteName(routeNum, forSpeech) {
+        routeNum = +routeNum;
+        console.log('route num', routeNum)
+
+        var name = transit.routeNames[routeNum];
+
+        switch (routeNum) {
+            case 201:
+            case 202:
+                return `The ${name}`;
+        }
+
+        if (name) {
+            return `Bus ${readBusNum(routeNum, forSpeech)} (${name})`;
+        }
+
+        return `Bus ${routeNum}`;
+    }
+
+    function getStopName(stopNum, forSpeech) {
+        var forCtrain = transit.ctrainStops[stopNum];
+
+        if (forCtrain) {
+            return `the ${forCtrain.name} station heading ${getHeading(forCtrain.dir)}`
+        }
+
+        return forSpeech ? `stop ${spacedOut(stopNum)}` : `stop ${stopNum}`;
+    }
+
+    function getHeading(dir) {
+        var result = dir;
+        switch (dir) {
+            case 'E':
+                result = 'east';
+                break;
+            case 'S':
+                result = 'south';
+                break;
+            case 'N':
+                result = 'north';
+                break;
+            case 'W':
+                result = 'west';
+                break;
+        }
+        return result;
+    }
+
+    function readBusNum(busNum, forSpeech) {
+        if (busNum <= 100) {
+            return busNum;
+        }
+        return forSpeech ? spacedOut(busNum) : busNum;
     }
 
     function storeRequestTime(now, stop, busNumber) {
@@ -469,7 +521,7 @@ What stop number do you want to hear about?`
     actionMap.set('forget.stop', forgetStop);
 
     actionMap.set('add.stop', function() {
-        announceStop1();
+        announceStopMultiple([body.result.parameters.stopNumber]);
     });
 
     actionMap.set('who.am.i', whoAmI);
