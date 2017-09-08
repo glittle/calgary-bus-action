@@ -333,7 +333,7 @@ What stop number do you want to hear about?`
         var forCtrain = transit.ctrainStops[stopNum];
 
         if (forCtrain) {
-            return `the ${forCtrain.name} station heading ${getHeading(forCtrain.dir)}`
+            return `the ${forCtrain.name} station ${forSpeech ? '' : `(stop ${stopNum})`} heading ${getHeading(forCtrain.dir)}`
         }
 
         return forSpeech ? `stop ${spacedOut(stopNum)}` : `stop ${stopNum}`;
