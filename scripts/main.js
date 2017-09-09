@@ -39,7 +39,7 @@ function handlePost(request, response) {
     console.log('Intent name:', body.result.metadata.intentName);
     console.log('From:', body.originalRequest.source, " Version:", body.originalRequest.version);
     console.log('Parameters:', body.result.parameters);
-    // console.log('Body', JSON.stringify(body));
+    console.log('Body', JSON.stringify(body));
 
     // console.log('users', knownUsers);
 
@@ -190,63 +190,7 @@ What stop number do you want to hear about?`
         ask([`Done. I've forgotten about stop number ${spacedOut(which)}.`], [`Done. I've forgotten about stop number ${which}.`])
     }
 
-    // function announceStop1(stop) {
-    //     stop = stop || body.result.parameters.stopNumber;
-
-    //     var speech = [];
-    //     var text = [];
-
-    //     // speech.push(`You asked for ${spacedOut('' + stop)}.`);
-    //     // text.push(`You asked for #${stop}.`)
-
-    //     externalInfo.getBusPage(stop, function(info) {
-    //         //Aug 30 2017 - 21:46:00 *
-    //         console.log('call result', info);
-
-    //         if (info.error) {
-    //             text.push(info.error);
-    //             speech.push(info.error);
-    //             ask(speech, text);
-    //             return;
-    //         }
-
-    //         var when = info.when;
-
-    //         var realtime = when.slice(-1) === '*';
-    //         if (realtime) {
-    //             when = when.slice(0, -2);
-    //         }
-
-    //         const next = moment.tz(when, 'MMM DD YYYY - HH:mm:ss', true, calgaryTimeZone)
-
-    //         const now = moment.tz(calgaryTimeZone);
-
-    //         console.log(now.format())
-    //         console.log(next.format())
-
-    //         const howSoonMin = next.diff(now, 'minutes');
-    //         // console.log('how soon', howSoonMin)
-    //         if (howSoonMin > 120) {
-    //             text.push(`${getRouteName(info.bus)} isn't scheduled at that stop within the next couple of hours.`)
-    //             speech.push(`${getRouteName(info.bus)} isn't scheduled at that stop within the next couple of hours.`)
-
-    //             ask(speech, text);
-    //             return;
-    //         }
-
-    //         const howSoon = now.to(next);
-    //         // console.log(howSoon);
-
-    //         text.push(`${getRouteName(info.bus)} is ${realtime ? 'leaving' : 'scheduled to leave'} ${getStopName(stop)} ${howSoon}.`)
-    //         speech.push(`${getRouteName(info.bus)} is ${realtime ? 'leaving' : 'scheduled to leave'} ${getStopName(stop, true)} ${howSoon}.`)
-
-    //         storeRequestTime(now, stop, info.bus);
-
-    //         ask(speech, text);
-    //     });
-    // }
-
-    function announceStopMultiple(stops) {
+    function announceStopMultiple(stops, rememberTime) {
         var speech = [];
         var text = [];
 
@@ -289,6 +233,10 @@ What stop number do you want to hear about?`
 
 
             infoList.forEach(function(info) {
+                if (info.error) {
+                    return;
+                }
+
                 const howSoonMin = info.howSoonMin;
                 const howSoon = info.howSoon;
 
@@ -303,7 +251,9 @@ What stop number do you want to hear about?`
                 text.push(`${getRouteName(info.bus)} is ${info.realtime ? 'leaving' : 'scheduled to leave'} ${getStopName(info.stop)} ${howSoon}.`)
                 speech.push(`${getRouteName(info.bus, true)} is ${info.realtime ? 'leaving' : 'scheduled to leave'} ${getStopName(info.stop, true)} ${howSoon}.`)
 
-                storeRequestTime(now, info.stop, info.bus);
+                if (rememberTime) {
+                    storeRequestTime(now, info.stop, info.bus);
+                }
             });
 
             ask(speech, text);
@@ -513,6 +463,28 @@ What stop number do you want to hear about?`
         ask(speech, text);
     }
 
+    function testDev1(){
+        //testDev2
+        externalInfo.calloutToApiAi('testDev2', body.sessionId);
+ 
+        ask(['this is test dev 1'], ['this is test dev 1'])   
+    }
+
+    function testDevD(){
+
+        app.setContext('person11', 999, {
+            age: 50,
+            name: 'Pris'
+        })
+
+        app.setContext('person2', 1, {
+            age: 50,
+            name: 'Pris'
+        })
+
+        ask(['this is test dev D'], ['this is test dev D'])   
+    }
+
     let actionMap = new Map();
     actionMap.set('input.welcome', welcome);
     actionMap.set('reset.bus.times', forgetAll);
@@ -521,11 +493,14 @@ What stop number do you want to hear about?`
     actionMap.set('forget.stop', forgetStop);
 
     actionMap.set('add.stop', function() {
-        announceStopMultiple([body.result.parameters.stopNumber]);
+        announceStopMultiple([body.result.parameters.stopNumber], true);
     });
 
     actionMap.set('who.am.i', whoAmI);
     actionMap.set('user.list', tellUsers);
+ 
+    actionMap.set('test.dev.1', testDev1);
+    actionMap.set('test.dev.d', testDevD);
 
     app.handleRequest(actionMap);
 }
