@@ -1,9 +1,10 @@
 const App = require('actions-on-google').ApiAiApp;
 
+const moment = require('moment-timezone');
+
 const externalInfo = require('./externalInfo');
 const general = require('./general');
 const transit = require('./transitKnowledge');
-const moment = require('moment-timezone');
 const dbHelper = require('./db');
 
 console.log(' ');
@@ -12,6 +13,7 @@ console.log('======= SERVER RESTARTED ==============================');
 const calgaryTimeZone = "America/Edmonton";
 
 var knownUsers = null;
+var stopsWithMultipleBuses = {}; // stored temporarily. Don't store in firebase in case CT changes routes
 
 dbHelper.knownUsersRef.once('value', function(snapshot) {
     knownUsers = snapshot.val() || {};
@@ -35,9 +37,16 @@ function handlePost(request, response) {
         request: request,
         response: response
     });
+
+    if (app.getArgument('is_health_check') === '1') {
+        console.log('Health Check. Doing great!')
+        app.tell(`Thanks for the health check! I'm feeling great!`)
+        return;
+    }
+
     console.log('Intent:', app.getIntent());
     console.log('Intent name:', body.result.metadata.intentName);
-    console.log('From:', body.originalRequest.source, " Version:", body.originalRequest.version);
+    // console.log('From:', body.originalRequest.source, " Version:", body.originalRequest.version);
     console.log('Parameters:', body.result.parameters);
     console.log('Body', JSON.stringify(body));
 
@@ -50,7 +59,7 @@ function handlePost(request, response) {
     if (!userInfo) {
         userInfo = knownUsers[userId] = { times: 1 };
     }
-    console.log('userInfo', userInfo);
+    console.log('userInfo', userId, userInfo);
 
     var userRef = dbHelper.knownUsersRef.child(userId);
 
@@ -85,6 +94,8 @@ function handlePost(request, response) {
         I'll remember the stop numbers you tell me, and when you ask for them so that next time you come back I can tell you the answer immediately!
         
         Please note, I'm a Calgarian and can only help out in Calgary, Canada with what Calgary Transit tells me!
+
+        (I'm also still learning, so if you want me to help you more, please let my developer know!)
         
         What stop number do you want to hear about?`
         ], [
@@ -92,6 +103,8 @@ function handlePost(request, response) {
         
 Please note, I'm a Calgarian and can only help out in Calgary, Canada with what Calgary Transit tells me.
         
+(I'm also still learning, so if you want me to help you more, please let my developer know!)
+
 What stop number do you want to hear about?`
         ]);
     }
@@ -104,15 +117,15 @@ What stop number do you want to hear about?`
             var text = [];
 
             // find within the hour
-            const timeRange = 45;
+            const timeRange = 30;
             const diffUnit = 'minutes';
-            console.log('now', now.format(), timeRange, diffUnit);
+            // console.log('now', now.format(), timeRange, diffUnit);
 
             userInfo.requests.forEach(function(raw) {
                 var r = JSON.parse(raw);
                 const time1 = moment.tz(r.time, "HHmm", true, calgaryTimeZone);
                 const test1 = time1.diff(now, diffUnit);
-                console.log(time1.format(), test1);
+                // console.log(time1.format(), test1);
 
                 if (Math.abs(test1) <= timeRange) {
                     inRange.push(r);
@@ -121,7 +134,7 @@ What stop number do you want to hear about?`
 
                 const time0 = moment(time1).subtract(24, 'hours');
                 const test0 = time0.diff(now, diffUnit);
-                console.log(time0.format(), test0);
+                // console.log(time0.format(), test0);
 
                 if (Math.abs(test0) <= timeRange) {
                     inRange.push(r);
@@ -130,21 +143,21 @@ What stop number do you want to hear about?`
 
                 const time2 = moment(time1).add(24, 'hours');
                 const test2 = time2.diff(now, diffUnit);
-                console.log(time2.format(), test2);
+                // console.log(time2.format(), test2);
 
                 if (Math.abs(test2) <= timeRange) {
                     inRange.push(r);
                     return;
                 }
 
-                console.log('looking at', r.time, '--- not within', timeRange, diffUnit);
+                // console.log('looking at', r.time, '--- not within', timeRange, diffUnit);
             });
 
-            console.log(inRange);
+            console.log('buses at this time', inRange);
 
             if (inRange.length) {
                 var stops = inRange
-                    .map(e => e.stop.toString())
+                    .map(function(el) { return { bus: el.bus, stop: el.stop } })
                     .filter((el, i, a) => i === a.indexOf(el));
                 console.log('asking for', stops)
                 announceStopMultiple(stops);
@@ -190,15 +203,62 @@ What stop number do you want to hear about?`
         ask([`Done. I've forgotten about stop number ${spacedOut(which)}.`], [`Done. I've forgotten about stop number ${which}.`])
     }
 
-    function announceStopMultiple(stops, rememberTime) {
+    function whichBusAtStop() {
+        var bus = body.result.parameters.bus;
+        //var stop = body.result.parameters.stopNumber;
+
+        var stop = app.getContextArgument('_actions_on_google_', 'stopNumber').value
+
+        // var knownList = stopsWithMultipleBuses[stop];
+        console.log('known list', stopsWithMultipleBuses);
+
+        console.log(bus, stop);
+        if (!stop) {
+            var msg = `Sorry, I didn't get the stop number.`
+            ask([msg], [msg]);
+            return;
+        }
+
+
+        announceStopMultiple([{
+            stop: stop,
+            bus: bus
+        }], true);
+    }
+
+    function announceStopMultiple(stopInfos, saveForFuture, addingNewStop) {
         var speech = [];
         var text = [];
 
         const now = moment.tz(calgaryTimeZone);
-        console.log(now.format())
 
-        externalInfo.getBusPages(stops, function(infoList) {
+        if (addingNewStop) {
+            var stop = stopInfos[0].stop;
+            var knownList = stopsWithMultipleBuses[stop];
+            if (knownList) {
+                console.log('known list!', knownList);
+                askWhichBusAtStop(stop, knownList)
+                return;
+            }
+        }
+
+        externalInfo.getBusPages(stopInfos, addingNewStop, function(infoList) {
             //Aug 30 2017 - 21:46:00 *
+            if (infoList.length === 0) {
+                var msg = `Sorry, I couldn't find any active buses for that stop!`;
+                text.push(msg);
+                speech.push(msg);
+                return;
+            }
+
+            if (addingNewStop && infoList.length === 1 && infoList[0].busList) {
+                var busList = infoList[0].busList;
+
+                stopsWithMultipleBuses[stopInfos[0].stop] = busList;
+
+                askWhichBusAtStop(stopInfos[0].stop, busList)
+                return;
+            }
 
             infoList.forEach(function(info) {
                 console.log('result', info);
@@ -233,7 +293,7 @@ What stop number do you want to hear about?`
 
 
             infoList.forEach(function(info) {
-                if (info.error) {
+                if (info.error || info.busList) {
                     return;
                 }
 
@@ -251,7 +311,7 @@ What stop number do you want to hear about?`
                 text.push(`${getRouteName(info.bus)} is ${info.realtime ? 'leaving' : 'scheduled to leave'} ${getStopName(info.stop)} ${howSoon}.`)
                 speech.push(`${getRouteName(info.bus, true)} is ${info.realtime ? 'leaving' : 'scheduled to leave'} ${getStopName(info.stop, true)} ${howSoon}.`)
 
-                if (rememberTime) {
+                if (saveForFuture) {
                     storeRequestTime(now, info.stop, info.bus);
                 }
             });
@@ -260,23 +320,111 @@ What stop number do you want to hear about?`
         });
     }
 
-    function getRouteName(routeNum, forSpeech) {
+    function getRouteName(routeNum, forSpeech, nameOnly) {
         routeNum = +routeNum;
-        console.log('route num', routeNum)
+        // console.log('route num', routeNum)
 
         var name = transit.routeNames[routeNum];
 
         switch (routeNum) {
             case 201:
             case 202:
-                return `The ${name}`;
+                return nameOnly ? name : `The ${name}`;
         }
 
         if (name) {
-            return `Bus ${readBusNum(routeNum, forSpeech)} (${name})`;
+            return nameOnly ? name : `Bus ${readBusNum(routeNum, forSpeech)} (${name})`;
         }
 
+        console.log('** Route name not found for', routeNum);
+
         return `Bus ${routeNum}`;
+    }
+
+    function askWhichBusAtStop(stop, busList) {
+        busList.sort(function(a, b) { return +a < +b ? -1 : 1 });
+
+        var askList = app.buildList('Buses using stop ' + stop);
+        var busStrList = [];
+        var speechList = [];
+        var numInList = busList.length;
+
+        var askListTemp = [];
+
+        busList.forEach(function(bNum, i) {
+            var bStr = '' + bNum;
+            busStrList.push(bStr);
+            var bNameShort = getRouteName(bNum, false, true);
+            var bNameLong = getRouteName(bNum, false, false);
+            var synonyms = [bStr, bNameShort]
+                .concat(bNameShort
+                    .split(' '));
+            console.log(bNameLong);
+            askListTemp.push({
+                    bStr,
+                    synonyms,
+                    bNameLong
+                })
+                // askList.addItems(
+                //     app
+                //     .buildOptionItem(bStr, synonyms)
+                //     .setTitle(bStr)
+                //     .setDescription(bName)
+                // );
+
+            if (i === numInList - 1) {
+                speechList.push(' or ');
+            }
+            speechList.push(bNameLong);
+        });
+        // console.log('before', askListTemp);
+        removeDuplicates(askListTemp);
+        // console.log('after', askListTemp);
+
+        askListTemp.forEach(function(info) {
+            askList.addItems(
+                app
+                .buildOptionItem(info.bStr, info.synonyms)
+                .setTitle(info.bStr)
+                .setDescription(info.bNameLong)
+                // .setImage('data:image/svg+xml;charset=US-ASCII,<%3Fxml%20version%3D"1.0"%20encoding%3D"utf-8"%3F><!DOCTYPE%20svg%20PUBLIC%20"-%2F%2FW3C%2F%2FDTD%20SVG%201.1%2F%2FEN"%20"http%3A%2F%2Fwww.w3.org%2FGraphics%2FSVG%2F1.1%2FDTD%2Fsvg11.dtd"><svg%20version%3D"1.1"%20id%3D"Layer_1"%20xmlns%3D"http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg"%20xmlns%3Axlink%3D"http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink"%20x%3D"0px"%20y%3D"0px"%20%20viewBox%3D"0%200%2030%2030"%20enable-background%3D"new%200%200%2030%2030"%20xml%3Aspace%3D"preserve"%20width%3D"30"%20height%3D"30"><g>%20<path%20fill%3D"%234F5D73"%20d%3D"M8.3%2C28.5c0%2C0.8-0.7%2C1.5-1.5%2C1.5H5.3c-0.8%2C0-1.5-0.7-1.5-1.5v-8.2c0-0.8%2C0.7-1.5%2C1.5-1.5h1.5%20%20c0.8%2C0%2C1.5%2C0.7%2C1.5%2C1.5V28.5z"%2F>%20<path%20fill%3D"%234F5D73"%20d%3D"M26.3%2C28.5c0%2C0.8-0.7%2C1.5-1.5%2C1.5h-1.5c-0.8%2C0-1.5-0.7-1.5-1.5v-8.2c0-0.8%2C0.7-1.5%2C1.5-1.5h1.5%20%20c0.8%2C0%2C1.5%2C0.7%2C1.5%2C1.5V28.5z"%2F>%20<rect%20x%3D"1.5"%20y%3D"17.6"%20fill%3D"%23B83A3F"%20width%3D"26.9"%20height%3D"9.3"%2F>%20<path%20fill%3D"%23B83A3F"%20d%3D"M27.9%2C3.8C25.5%2C0%2C24.4%2C0%2C16%2C0H14C5.6%2C0%2C4.5%2C0%2C2.1%2C3.8c-0.2%2C2.8-0.6%2C11-0.6%2C11V18H14H16h12.4v-3.2%20%20C28.5%2C14.8%2C28.1%2C6.5%2C27.9%2C3.8z"%2F>%20<path%20fill%3D"%23AEDFF4"%20d%3D"M26.2%2C12.8l-0.5-7.5h-9.1v0H4.3l-0.5%2C7.5c-0.3%2C2.6%2C2.8%2C2.3%2C2.8%2C2.3h6.8v0h10C23.4%2C15.1%2C26.5%2C15.4%2C26.2%2C12.8%20%20z"%2F>%20<path%20fill%3D"%23FFFFFF"%20d%3D"M21.5%2C3.4c0%2C0.4-0.3%2C0.7-0.7%2C0.7H9.3c-0.4%2C0-0.7-0.3-0.7-0.7V2.3c0-0.4%2C0.3-0.7%2C0.7-0.7h11.5%20%20c0.4%2C0%2C0.7%2C0.3%2C0.7%2C0.7V3.4z"%2F>%20<circle%20fill%3D"%23E0995E"%20cx%3D"6"%20cy%3D"22.5"%20r%3D"1.5"%2F>%20<circle%20fill%3D"%23E0995E"%20cx%3D"24"%20cy%3D"22.5"%20r%3D"1.5"%2F><%2Fg><%2Fsvg>', 'Math & prime numbers')
+            );
+        });
+
+        // askList.addItems(app.buildOptionItem('RECIPES', ['recipes', 'recipe', '42 recipes'])
+        //     .setTitle('42 recipes with 42 ingredients')
+        //     .setDescription('Here\'s a beautifully simple recipe that\'s full ' +
+        //         'of flavor! All you need is some ginger and…')
+        //     .setImage('http://example.com/recipe', 'Recipe')
+        // );
+
+        app.setContext('contextWhichBus', 2);
+        app.askWithList(
+            app
+            .buildRichResponse()
+            .addSimpleResponse({
+                displayText: 'Multiple buses use that stop. Which bus number are you interested in?',
+                speech: 'Multiple buses use that stop. Which bus number are you interested in? ' +
+                    speechList.join(', ')
+            })
+            .addSuggestions(busStrList),
+            askList);
+
+    }
+
+    function removeDuplicates(list) {
+        var termCount = {};
+        // two passes
+        list.forEach(function(info) {
+            info.synonyms.forEach(function(s) {
+                termCount[s] = (termCount[s] || 0) + 1;
+            })
+        });
+        list.forEach(function(info) {
+            info.synonyms = info.synonyms.filter(function(s) {
+                return termCount[s] === 1;
+            })
+        });
     }
 
     function getStopName(stopNum, forSpeech) {
@@ -309,10 +457,11 @@ What stop number do you want to hear about?`
     }
 
     function readBusNum(busNum, forSpeech) {
-        if (busNum <= 100) {
-            return busNum;
-        }
-        return forSpeech ? spacedOut(busNum) : busNum;
+        // if (busNum <= 100) {
+        //     return busNum;
+        // }
+        return busNum;
+        // return forSpeech ? spacedOut(busNum) : busNum;
     }
 
     function storeRequestTime(now, stop, busNumber) {
@@ -348,8 +497,8 @@ What stop number do you want to hear about?`
             speech: '<speak>' + speech + '</speak>',
             displayText: text
         });
-        console.log('Text', text)
-        console.log('Speech', speech)
+        console.log('Text:', text)
+        console.log('Speech:', speech)
     }
 
     function addWhatElse(speech, text) {
@@ -367,7 +516,7 @@ What stop number do you want to hear about?`
 
 
     function spacedOut(o) {
-        return o.toString().split('').join(' ');
+        return (o || '').toString().split('').join(' ');
     }
 
     function whoAmI(app) {
@@ -385,14 +534,152 @@ What stop number do you want to hear about?`
         ask(speech, text)
     }
 
-    function resetLocation() {
-        var userInfo = knownUsers[userId];
-        delete userInfo.coord;
-        delete userInfo.location;
-        delete userInfo.zoneName;
-        userRef.set(userInfo);
+    function getNearbyStops1() {
+        app.askForPermission('Okay', app.SupportedPermissions.DEVICE_PRECISE_LOCATION);
+    }
 
-        app.askForPermission('Sure. ', app.SupportedPermissions.DEVICE_PRECISE_LOCATION);
+    function getNearbyStops2() {
+        if (app.isPermissionGranted()) {
+            /*
+                "coordinates": {
+                  "latitude": 51.1004367,
+                  "longitude": -113.95960439999999
+                }
+            */
+            var loc = app.getDeviceLocation();
+            console.log(loc)
+            var coordRaw = loc.coordinates;
+            var coord = {
+                lat: coordRaw.latitude,
+                lng: coordRaw.longitude
+            };
+            console.log(`${coord.lat},${coord.lng}`);
+            externalInfo.getNearbyStops(coord, function(info){
+                var speech = [];
+                var text = [];
+
+                text.push(`Google told me that you are near ${info.assumedAddress}. Here are 6 nearby stop locations.`);
+                speech.push(`Google told me that you are near ${info.assumedAddress}. Here are 6 nearby stop locations.`);
+
+                var combined = {};
+                info.stops.forEach(function(s){
+                    if(!combined[s.desc]){
+                        combined[s.desc] = {};
+                    }
+                    combined[s.desc][s.stop] = true;
+                });                
+
+                var combinedKeys = Object.keys(combined).splice(0, 6);
+                var numInList = combinedKeys.length;
+                
+                combinedKeys.forEach(function(desc, i){
+                    var stopsRemaining = Object.keys(combined[desc]);
+                    stopsRemaining.sort();
+                    var first = stopsRemaining.shift();
+                    var stopsText = [first]
+                    var stopsSpeech = [spacedOut(first)];
+                    var numRemaining = stopsRemaining.length;
+                    stopsRemaining.forEach(function(s, stopI){
+                        if(stopI === numRemaining-1){
+                            stopsText.push(' and ');
+                            stopsSpeech.push(' and ');
+                        }else{
+                            stopsText.push(', ');
+                            stopsSpeech.push(', ');
+                        }
+                        stopsText.push(s)
+                        stopsSpeech.push(spacedOut(s));
+                    })
+
+                    text.push(`\n\n${fixAddress(desc, true)}. Stop${stopsText.length===1?'':'s'} ${stopsText.join('')}.`);
+
+                    if (i === numInList - 1) {
+                        speech.push(' or, ');
+                    }
+                    speech.push(`${fixAddress(desc)}. Stop${stopsSpeech.length===1?'':'s'} number ${stopsSpeech.join('')}; `);
+                });
+
+                speech.push('Which stop number are you interested in?');
+                text.push('\n\nWhich stop number are you interested in?');
+
+                askWithoutWhatElse(speech, text);
+            });
+        // console.log('main', stopsList);
+                // var askList = app.buildList('Stops near ' + info.assumedAddress);
+
+                // var busStrList = [];
+                // var speechList = [];
+                // var numInList = info.stops.length;
+        
+                // var askListTemp = [];
+        
+                // info.stops.forEach(function(stopInfo, i) {
+                    
+                //     var synonyms = [stopInfo.desc]
+                //         .concat(stopInfo.desc.split(' '));
+                //     askListTemp.push({
+                //             bStr: stopInfo.stop,
+                //             synonyms,
+                //             bNameLong: stopInfo.desc
+                //         })
+        
+                //     if (i === numInList - 1) {
+                //         speechList.push(' or ');
+                //     }
+                //     speechList.push(spacedOut(stopInfo.stop) + ': ' + fixAddress(stopInfo.desc));
+                // });
+
+                //  console.log('before', askListTemp);
+                // removeDuplicates(askListTemp);
+                //  console.log('after', askListTemp);
+                
+                // askListTemp.forEach(function(info) {
+                //     askList.addItems(
+                //         app
+                //         .buildOptionItem(info.bStr, info.synonyms)
+                //         .setTitle(info.bStr)
+                //         .setDescription(info.bNameLong)
+                //         // .setImage('data:image/svg+xml;charset=US-ASCII,<%3Fxml%20version%3D"1.0"%20encoding%3D"utf-8"%3F><!DOCTYPE%20svg%20PUBLIC%20"-%2F%2FW3C%2F%2FDTD%20SVG%201.1%2F%2FEN"%20"http%3A%2F%2Fwww.w3.org%2FGraphics%2FSVG%2F1.1%2FDTD%2Fsvg11.dtd"><svg%20version%3D"1.1"%20id%3D"Layer_1"%20xmlns%3D"http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg"%20xmlns%3Axlink%3D"http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink"%20x%3D"0px"%20y%3D"0px"%20%20viewBox%3D"0%200%2030%2030"%20enable-background%3D"new%200%200%2030%2030"%20xml%3Aspace%3D"preserve"%20width%3D"30"%20height%3D"30"><g>%20<path%20fill%3D"%234F5D73"%20d%3D"M8.3%2C28.5c0%2C0.8-0.7%2C1.5-1.5%2C1.5H5.3c-0.8%2C0-1.5-0.7-1.5-1.5v-8.2c0-0.8%2C0.7-1.5%2C1.5-1.5h1.5%20%20c0.8%2C0%2C1.5%2C0.7%2C1.5%2C1.5V28.5z"%2F>%20<path%20fill%3D"%234F5D73"%20d%3D"M26.3%2C28.5c0%2C0.8-0.7%2C1.5-1.5%2C1.5h-1.5c-0.8%2C0-1.5-0.7-1.5-1.5v-8.2c0-0.8%2C0.7-1.5%2C1.5-1.5h1.5%20%20c0.8%2C0%2C1.5%2C0.7%2C1.5%2C1.5V28.5z"%2F>%20<rect%20x%3D"1.5"%20y%3D"17.6"%20fill%3D"%23B83A3F"%20width%3D"26.9"%20height%3D"9.3"%2F>%20<path%20fill%3D"%23B83A3F"%20d%3D"M27.9%2C3.8C25.5%2C0%2C24.4%2C0%2C16%2C0H14C5.6%2C0%2C4.5%2C0%2C2.1%2C3.8c-0.2%2C2.8-0.6%2C11-0.6%2C11V18H14H16h12.4v-3.2%20%20C28.5%2C14.8%2C28.1%2C6.5%2C27.9%2C3.8z"%2F>%20<path%20fill%3D"%23AEDFF4"%20d%3D"M26.2%2C12.8l-0.5-7.5h-9.1v0H4.3l-0.5%2C7.5c-0.3%2C2.6%2C2.8%2C2.3%2C2.8%2C2.3h6.8v0h10C23.4%2C15.1%2C26.5%2C15.4%2C26.2%2C12.8%20%20z"%2F>%20<path%20fill%3D"%23FFFFFF"%20d%3D"M21.5%2C3.4c0%2C0.4-0.3%2C0.7-0.7%2C0.7H9.3c-0.4%2C0-0.7-0.3-0.7-0.7V2.3c0-0.4%2C0.3-0.7%2C0.7-0.7h11.5%20%20c0.4%2C0%2C0.7%2C0.3%2C0.7%2C0.7V3.4z"%2F>%20<circle%20fill%3D"%23E0995E"%20cx%3D"6"%20cy%3D"22.5"%20r%3D"1.5"%2F>%20<circle%20fill%3D"%23E0995E"%20cx%3D"24"%20cy%3D"22.5"%20r%3D"1.5"%2F><%2Fg><%2Fsvg>', 'Math & prime numbers')
+                //     );
+                // });
+        
+                // app.askWithList(
+                //     app
+                //     .buildRichResponse()
+                //     .addSimpleResponse({
+                //         displayText: `Google told me that you are near ${info.assumedAddress}. Here are stops near there. Which would you like to know more about?`,
+                //         speech: `Google told me that you are near ${info.assumedAddress}. Here are stops near there. Which would you like to know more about? ` +
+                //             speechList.join(', ')
+                //                             })
+                //     .addSuggestions(busStrList),
+                //     askList);
+
+        }else{
+            var msg = [`Sorry, I didn't catch that.`]
+            ask(msg, msg);
+        }
+    }
+
+    function fixAddress(s, onlyFirst){
+        s= s
+        .replace(/NE/g, '')//North east') -- these are just extra noise when dealing with a small local area
+        .replace(/NW/g, '')//'North west')
+        .replace(/SW/g, '')//'South west')
+        .replace(/SE/g, '')//'South east')
+        if(onlyFirst){
+            return s.trim();
+        }
+        s=s.replace(/DR/g, 'Drive')
+        .replace(/EB/g, 'east bound')
+        .replace(/WB/g, 'west bound')
+        .replace(/NB/g, 'north bound')
+        .replace(/SB/g, 'south bound')
+        .replace(/CR/g, 'cresent')
+        .replace(/BV/g, 'boulevard')
+        .replace(/AV/g, 'avenue')
+        .replace(/E\./g, 'east')
+        .replace(/W\./g, 'west')
+        return s;
     }
 
     function tellLocation() {
@@ -493,9 +780,22 @@ What stop number do you want to hear about?`
     actionMap.set('forget.stop', forgetStop);
 
     actionMap.set('add.stop', function() {
-        announceStopMultiple([body.result.parameters.stopNumber], true);
+        var stop = +body.result.parameters.stopNumber;
+        if(stop < 1000 || stop > 9999){
+            var msg = 'Stop numbers are 4 digit numbers. Please try again!';
+            ask([msg], [msg]);
+            return;
+        }
+        announceStopMultiple([{
+            stop: stop
+        }], true, true);
     });
-
+    // action has hardcoded actions_intent_option event in it
+    actionMap.set('add.stop.whichbus', whichBusAtStop);
+ 
+    actionMap.set('get.nearby', getNearbyStops1);
+    actionMap.set('get.nearby.fallback', getNearbyStops2);
+ 
     actionMap.set('who.am.i', whoAmI);
     actionMap.set('user.list', tellUsers);
  
