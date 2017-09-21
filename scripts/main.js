@@ -12,7 +12,7 @@ console.log('======= SERVER RESTARTED ==============================');
 
 const calgaryTimeZone = "America/Edmonton";
 
-var knownUsers = null;
+var knownUsers = {};
 var stopsWithMultipleBuses = {}; // stored temporarily. Don't store in firebase in case CT changes routes
 
 dbHelper.knownUsersRef.once('value', function(snapshot) {
