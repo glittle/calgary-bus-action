@@ -1,6 +1,7 @@
 const App = require('actions-on-google').ApiAiApp;
 
 const moment = require('moment-timezone');
+const os = require('os');
 
 const externalInfo = require('./externalInfo');
 const general = require('./general');
@@ -762,18 +763,8 @@ What stop number do you want to hear about?`
     }
 
     function testDevD(){
-
-        app.setContext('person11', 999, {
-            age: 50,
-            name: 'Pris'
-        })
-
-        app.setContext('person2', 1, {
-            age: 50,
-            name: 'Pris'
-        })
-
-        ask(['this is test dev D'], ['this is test dev D'])   
+        var msg = `My host's name is: ${os.hostname()}.`;
+        ask([msg], [msg])   
     }
 
     let actionMap = new Map();
