@@ -22,7 +22,7 @@ dbHelper.knownUsersRef.once('value', function(snapshot) {
 });
 
 
-function handlePost(request, response) {
+function handlePost(request, response, console) {
 
     var now = new Date();
     var body = request.body;

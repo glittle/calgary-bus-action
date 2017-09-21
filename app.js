@@ -26,7 +26,7 @@ expressApp.get('/*', function(request, response) {
 
 // main incoming call
 expressApp.post('/', function(request, response) {
-    main.handlePost(request, response);
+    main.handlePost(request, response, console);
 });
 
 // Start the server
