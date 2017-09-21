@@ -41,7 +41,7 @@ module.exports = function (context, req) {
     main.handlePost(mockRequest, mockResponse);
 
     // context.res = JSON.stringify(assistant.response_._getData());
-    context.res = mockResponse._getData();
+    context.res = mockResponse._getData(); 
 
     // if (req.query.name || (req.body && req.body.name)) {
     //     context.res = {
