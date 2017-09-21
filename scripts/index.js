@@ -9,12 +9,21 @@ module.exports = function (context, req) {
 
     // See https://github.com/actions-on-google/actions-on-google-nodejs/issues/48
 
+    console.log('context', context)
+    console.log('req', req)
+
     // Prep the request and response.
     let mockRequest = expressMockery.createRequest({
-        body: req
+        body: req.body,
+        query: req.query,
+        method: req.method
     });
 
-    let mockResponse = expressMockery.createResponse();
+    let mockResponse = expressMockery.createResponse({
+    });
+
+    console.log('mock req', mockRequest)
+    console.log('mock resp', mockResponse)
 
     // We need this monkey patch because node-mocks-http doesn't have the append.
     mockResponse["append"] = (header, value) => {
