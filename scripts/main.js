@@ -90,7 +90,7 @@ function handlePost(request, response) {
     function askMainWelcome() {
         askWithoutWhatElse([
             `Hi!  
-        I can tell you when the next bus is coming to the stop you are currently at. 
+        I can tell you when the next bus or train is coming to the stop you are currently at. 
         I'll remember the stop numbers you tell me, and when you ask for them so that next time you come back I can tell you the answer immediately!
         
         Please note, I'm a Calgarian and can only help out in Calgary, Canada with what Calgary Transit tells me!
@@ -99,7 +99,7 @@ function handlePost(request, response) {
         
         What stop number do you want to hear about?`
         ], [
-            `Hi!  I can tell you when the next bus is coming to the stop you are currently at. I'll remember the stop numbers you tell me, and when you ask for them so that next time you come back I can tell you the answer immediately!
+            `Hi!  I can tell you when the next bus or train is coming to the stop you are currently at. I'll remember the stop numbers you tell me, and when you ask for them so that next time you come back I can tell you the answer immediately!
         
 Please note, I'm a Calgarian and can only help out in Calgary, Canada with what Calgary Transit tells me.
         
@@ -204,11 +204,15 @@ What stop number do you want to hear about?`
     }
 
     function whichBusAtStop() {
-        var bus = body.result.parameters.bus;
-        //var stop = body.result.parameters.stopNumber;
+        // var bus = body.result.parameters.bus;
 
+        var bus = app.getContextArgument('actions_intent_option', 'OPTION').value
         var stop = app.getContextArgument('_actions_on_google_', 'stopNumber').value
+            //var stop = body.result.parameters.stopNumber;
 
+
+
+        console.log('bus/stop', bus, stop);
         // var knownList = stopsWithMultipleBuses[stop];
         console.log('known list', stopsWithMultipleBuses);
 
@@ -308,8 +312,8 @@ What stop number do you want to hear about?`
                     return;
                 }
 
-                text.push(`${getRouteName(info.bus)} is ${info.realtime ? 'leaving' : 'scheduled to leave'} ${getStopName(info.stop)} ${howSoon}.`)
-                speech.push(`${getRouteName(info.bus, true)} is ${info.realtime ? 'leaving' : 'scheduled to leave'} ${getStopName(info.stop, true)} ${howSoon}.`)
+                text.push(`${getRouteName(info.bus)} ${info.realtime ? 'is leaving' : 'should leave'} ${getStopName(info.stop)} ${howSoon}.`)
+                speech.push(`${getRouteName(info.bus, true)} ${info.realtime ? 'is leaving' : 'should leave'} ${getStopName(info.stop, true)} ${howSoon}.`)
 
                 if (saveForFuture) {
                     storeRequestTime(now, info.stop, info.bus);
@@ -329,7 +333,7 @@ What stop number do you want to hear about?`
         switch (routeNum) {
             case 201:
             case 202:
-                return nameOnly ? name : `The ${name}`;
+                return nameOnly ? name : `A ${name}`;
         }
 
         if (name) {
@@ -403,8 +407,8 @@ What stop number do you want to hear about?`
             app
             .buildRichResponse()
             .addSimpleResponse({
-                displayText: 'Multiple buses use that stop. Which bus number are you interested in?',
-                speech: 'Multiple buses use that stop. Which bus number are you interested in? ' +
+                displayText: 'Multiple routes use that stop. Which route number are you interested in?',
+                speech: 'Multiple routes use that stop. Which route number are you interested in? ' +
                     speechList.join(', ')
             })
             .addSuggestions(busStrList),
@@ -591,12 +595,12 @@ What stop number do you want to hear about?`
                         stopsSpeech.push(spacedOut(s));
                     })
 
-                    text.push(`\n\n${fixAddress(desc, true)}. Stop${stopsText.length===1?'':'s'} ${stopsText.join('')}.`);
+                    text.push(`\n\n${fixAddress(desc, true)} - Stop${stopsText.length===1?'':'s'} ${stopsText.join('')}.`);
 
                     if (i === numInList - 1) {
                         speech.push(' or, ');
                     }
-                    speech.push(`${fixAddress(desc)}. Stop${stopsSpeech.length===1?'':'s'} number ${stopsSpeech.join('')}; `);
+                    speech.push(`${fixAddress(desc)} - Stop${stopsSpeech.length===1?'':'s'} number ${stopsSpeech.join('')}. `);
                 });
 
                 speech.push('Which stop number are you interested in?');
@@ -791,7 +795,8 @@ What stop number do you want to hear about?`
         }], true, true);
     });
     // action has hardcoded actions_intent_option event in it
-    actionMap.set('add.stop.whichbus', whichBusAtStop);
+    // actionMap.set('add.stop.whichbus', whichBusAtStop);
+    actionMap.set('add.stop.fallback', whichBusAtStop);
  
     actionMap.set('get.nearby', getNearbyStops1);
     actionMap.set('get.nearby.fallback', getNearbyStops2);
