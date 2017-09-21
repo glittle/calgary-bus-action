@@ -4,6 +4,12 @@ let expressMockery = require("node-mocks-http");
 
 const main = require('./main');
 
+const console = function(){
+    return {
+        log: context.log
+    }
+}();
+
 module.exports = function (context, req) {
     context.log('HTTP trigger - main');
 
