@@ -11,14 +11,16 @@ module.exports = function (context, req) {
 
     const console = function(){
         return {
-            log: context.log
+            log: context.log,
+            info: context.info,
+            debug: context.info
         }
     }();
 
     // See https://github.com/actions-on-google/actions-on-google-nodejs/issues/48
 
-    console.log('context', context)
-    console.log('req', req)
+    // console.log('context', context)
+    // console.log('req', req)
 
     // Prep the request and response.
     let mockRequest = expressMockery.createRequest({
@@ -30,15 +32,15 @@ module.exports = function (context, req) {
     let mockResponse = expressMockery.createResponse({
     });
 
-    console.log('mock req', mockRequest)
-    console.log('mock resp', mockResponse)
+    // console.log('mock req', mockRequest)
+    // console.log('mock resp', mockResponse)
 
     // We need this monkey patch because node-mocks-http doesn't have the append.
     mockResponse["append"] = (header, value) => {
-        console.log("Google SDK added a header: \"" + header + "\": \"" + value + "\"");
+        context.log("Google SDK added a header: \"" + header + "\": \"" + value + "\"");
     };
 
-    main.handlePost(mockRequest, mockResponse);
+    main.handlePost(mockRequest, mockResponse, console);
 
     // context.res = JSON.stringify(assistant.response_._getData());
     context.res = mockResponse._getData(); 
