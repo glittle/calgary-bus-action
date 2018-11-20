@@ -103,7 +103,7 @@ function getNearbyStops(coord, cb) {
         `?callback=a&latitude=${coord.lat}&longitude=${coord.lng}`;
     promises.push(caller.getPromise(url));
 
-    url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coord.lat},${coord.lng}`;
+    url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coord.lat},${coord.lng}&key=AIzaSyDVTMtKstmup60RDf5LrpWGcDt3G6bLCxA`;
     promises.push(caller.getPromise(url));
 
     Promise.all(promises)
