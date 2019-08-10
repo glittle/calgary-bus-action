@@ -564,10 +564,19 @@ What stop number do you want to hear about?`
     }
 
     function getNearbyStops1() {
+        var speech = [];
+        var text = [];
+        text.push(`Sorry, I can't get nearby stops from Calgary Transit right now.`);
+        speech.push(`Sorry, I can't get nearby stops from Calgary Transit right now.`);
+        askWithoutWhatElse(speech, text);
+        return;
+
+
         app.askForPermission('Okay', app.SupportedPermissions.DEVICE_PRECISE_LOCATION);
     }
 
     function getNearbyStops2() {
+
         if (app.isPermissionGranted()) {
             /*
                 "coordinates": {
@@ -575,6 +584,7 @@ What stop number do you want to hear about?`
                   "longitude": -113.95960439999999
                 }
             */
+
             var loc = app.getDeviceLocation();
             console.log(loc)
             var coordRaw = loc.coordinates;

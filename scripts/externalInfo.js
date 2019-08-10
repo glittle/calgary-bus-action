@@ -62,7 +62,9 @@ function getBusPages(stopInfos, addingNewStop, cb) {
                     console.log(stop, 'has', resultList.length, 'entries')
                     if (resultList.length === 0) {
                         var noResult = ($('.results').text() || 'No info found').trim();
-                        infos.push({ error: noResult });
+                        infos.push({
+                            error: noResult
+                        });
                         return;
                     }
                     resultList.each(function(i, el) {
@@ -109,11 +111,13 @@ function getNearbyStops(coord, cb) {
     Promise.all(promises)
         .then(results => {
             var forCb = {};
-
+            var resultNum = 1;
             results.forEach(function(result) {
 
                 const data = result.data;
                 const string = data.toString('utf8');
+
+                console.log('result', resultNum++, JSON.stringify(string));
 
                 if (string.slice(0, 3) === 'a([') {
                     // bus info
@@ -133,11 +137,14 @@ function getNearbyStops(coord, cb) {
 
                 } else {
                     // location
-                    console.log('location')
-                        // console.log('location', JSON.stringify(data));
-                        // just use the first one, assuming it is the most detailed
-                    forCb.assumedAddress = data.results[0].formatted_address.split(',')[0];
-
+                    console.log('location');
+                    // console.log('location', JSON.stringify(data));
+                    // just use the first one, assuming it is the most detailed
+                    if (data && data.results && data.results[0] && data.results[0].formatted_address) {
+                        forCb.assumedAddress = data.results[0].formatted_address.split(',')[0];
+                    } else {
+                        console.log('Error getting location results', string);
+                    }
                     // console.log(data.assumedAddress);
                 }
 
