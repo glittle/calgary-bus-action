@@ -101,7 +101,7 @@ function getNearbyStops(coord, cb) {
     const caller = new ClientP();
     var promises = [];
 
-    var url = 'http://hastinfoweb.calgarytransit.com/hastinfoweb2/api/NextPassingTimesAPI/GetStopsNearLocation' +
+    var url = 'https://hastinfo.calgarytransit.com/HastinfoMVCWeb/api/NextPassingTimesAPI/GetStopsNearLocation' +
         `?callback=a&latitude=${coord.lat}&longitude=${coord.lng}`;
     promises.push(caller.getPromise(url));
 
@@ -117,13 +117,14 @@ function getNearbyStops(coord, cb) {
                 const data = result.data;
                 const string = data.toString('utf8');
 
-                console.log('result', resultNum++, JSON.stringify(string));
+                // console.log('result', resultNum++, JSON.stringify(string));
 
-                if (string.slice(0, 3) === 'a([') {
+                var yycParts = string.split('a(');
+                if (yycParts.length === 2) {
                     // bus info
                     console.log('stops info')
-                    var data2 = string.slice(2, -2);
-                    //console.log(info);
+                    var data2 = yycParts[1].slice(0, -2);
+                    // console.log(info);
                     var info = JSON.parse(data2);
 
                     forCb.stops = info.map(function(i) {
