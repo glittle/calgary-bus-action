@@ -12,7 +12,7 @@ const main = require('./scripts/main');
 
 let express = require('express');
 let expressApp = express();
-expressApp.set('port', (process.env.PORT || 8005));
+expressApp.set('port', (process.env.PORT || 8007));
 
 let bodyParser = require('body-parser');
 expressApp.use(bodyParser.json({
@@ -21,7 +21,7 @@ expressApp.use(bodyParser.json({
 
 expressApp.get('/*', function(request, response) {
     console.log('incoming GET - should be testing only!');
-    response.send('hello from yycbus');
+    response.send('hello from yycbus V2 at ' + new Date());
 });
 
 // main incoming call

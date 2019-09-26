@@ -17,7 +17,7 @@ lastAccessRef.once("value", function(snapshot) {
     });
 });
 
-var knownUsersRef = db.ref('/user');
+var knownUsersRef = db.ref('/usersV2');
 
 module.exports = {
     knownUsersRef: knownUsersRef

@@ -1,3 +1,4 @@
+const uuidv4 = require('uuid/v4');
 const externalInfo = require('./externalInfo');
 //const timezonedb = require('timezonedb-node')(process.env.timeZoneKey);
 
@@ -13,6 +14,10 @@ function encodeAsFirebaseKey(string) {
 
 function getOrdinal(num) {
     return ['', 'st', 'nd', 'rd'][num] || 'th';
+}
+
+function makeUserId() {
+    return 'id' + uuidv4().replace(/-/g, '');
 }
 
 function addToBoth(s, speech, text) {
@@ -69,9 +74,9 @@ function cleanVerseForSpeech(text) {
 var _nextFilledWithEach_UsesExactMatchOnly = false;
 String.prototype.filledWith = function() {
     /// <summary>Similar to C# String.Format...  in two modes:
-    /// 1) Replaces {0},{1},{2}... in the string with values from the list of arguments. 
-    /// 2) If the first and only parameter is an object, replaces {xyz}... (only names allowed) in the string with the properties of that object. 
-    /// Notes: the { } symbols cannot be escaped and should only be used for replacement target tokens;  only a single pass is done. 
+    /// 1) Replaces {0},{1},{2}... in the string with values from the list of arguments.
+    /// 2) If the first and only parameter is an object, replaces {xyz}... (only names allowed) in the string with the properties of that object.
+    /// Notes: the { } symbols cannot be escaped and should only be used for replacement target tokens;  only a single pass is done.
     /// </summary>
 
     var values = typeof arguments[0] === 'object' && arguments.length === 1 ? arguments[0] : arguments;
@@ -169,7 +174,7 @@ function quoteattr(s, preserveCr) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         /*
-        You may add other replacements here for HTML only 
+        You may add other replacements here for HTML only
         (but it's not necessary).
         Or for XML, only if the named entities are defined in its DTD.
         */
@@ -196,6 +201,7 @@ String.prototype.filledWithEach = function(arr) {
 module.exports = {
     getLocationInfo,
     extractUserId,
+    makeUserId,
     getOrdinal,
     cleanVerseForSpeech,
     addToBoth

@@ -1,4 +1,19 @@
-const App = require('actions-on-google').ApiAiApp;
+const {
+    dialogflow,
+    BasicCard,
+    BrowseCarousel,
+    BrowseCarouselItem,
+    Button,
+    Carousel,
+    Image,
+    LinkOutSuggestion,
+    List,
+    MediaObject,
+    Permission,
+    Suggestions,
+    SimpleResponse,
+    Table,
+} = require('actions-on-google');
 
 const moment = require('moment-timezone');
 const os = require('os');
@@ -23,56 +38,65 @@ dbHelper.knownUsersRef.once('value', function(snapshot) {
 });
 
 
+const appV2 = dialogflow({
+    // debug: true,
+});
+
 function handlePost(request, response, console) {
 
     var now = new Date();
-    var body = request.body;
+    // var body = request.body;
+
+    var conv = null;
+    var userInfo = {};
+    var userId = '';
+    var userRef = {};
 
     // console.log(request)
     // console.log('address', request.connection.remoteAddress)
 
-    console.log('\r\n\r\n---------------------------');
-    console.log('------ incoming POST ------');
-    console.log(`---${now.toLocaleTimeString()}---`);
-    const app = new App({
-        request: request,
-        response: response
-    });
+    console.log('\r\n\r\n------------------------------------------------------');
+    console.log('------ incoming POST ---------------------------------');
+    console.log(`------ ${now.toLocaleTimeString()} ---`);
+    // const app = new App({
+    //     request: request,
+    //     response: response
+    // });
 
-    if (app.getArgument('is_health_check') === '1') {
-        console.log('Health Check. Doing great!')
-        app.tell(`Thanks for the health check! I'm feeling great!`)
-        return;
-    }
+    // if (app.getArgument('is_health_check') === '1') {
+    //     console.log('Health Check. Doing great!')
+    //     app.tell(`Thanks for the health check! I'm feeling great!`)
+    //     return;
+    // }
 
-    console.log('Intent:', app.getIntent());
-    console.log('Intent name:', body.result.metadata.intentName);
-    // console.log('From:', body.originalRequest.source, " Version:", body.originalRequest.version);
-    console.log('Parameters:', body.result.parameters);
-    console.log('Body', JSON.stringify(body));
+    // console.log('Intent:', app.getIntent());
+    // console.log('Intent name:', body.result.metadata.intentName);
+    // // console.log('From:', body.originalRequest.source, " Version:", body.originalRequest.version);
+    // console.log('Parameters:', body.result.parameters);
+    // console.log('Body', JSON.stringify(body));
 
     // console.log('users', knownUsers);
 
     // determine who this is
-    var userId = general.extractUserId(app, request);
-    // console.log('userId', userId)
-    var userInfo = knownUsers[userId];
-    if (!userInfo) {
-        userInfo = knownUsers[userId] = {
-            times: 1
-        };
-    }
-    console.log('userInfo', userId, userInfo);
+    // var userId = general.extractUserId(app, request);
+    // // console.log('userId', userId)
+    // var userInfo = knownUsers[userId];
+    // if (!userInfo) {
+    //     userInfo = knownUsers[userId] = {
+    //         times: 1
+    //     };
+    // }
+    // console.log('userInfo', userId, userInfo);
 
-    var userRef = dbHelper.knownUsersRef.child(userId);
+    // var userRef = dbHelper.knownUsersRef.child(userId);
 
-    var times = (userInfo.times || 1) + 1;
-    userRef.update({
-        last_access: now,
-        times: times
-    })
-    userInfo.last_access = now;
-    userInfo.times = times;
+    // var times = (userInfo.times || 1) + 1;
+    // userRef.update({
+    //     last_access: now,
+    //     times: times
+    // })
+    // userInfo.last_access = now;
+    // userInfo.times = times;
 
     // console.log(app.getUser())
 
@@ -89,7 +113,7 @@ function handlePost(request, response, console) {
         if (userInfo.times === 1) {
             askMainWelcome();
         } else {
-            askWithBestTime();
+            return askWithBestTime();
         }
     }
 
@@ -171,7 +195,7 @@ What stop number do you want to hear about?`
                     })
                     .filter((el, i, a) => i === a.indexOf(el));
                 console.log('asking for', stops)
-                announceStopMultiple(stops);
+                return announceStopMultiple(stops);
 
             } else {
                 askWithoutWhatElse([
@@ -199,7 +223,7 @@ What stop number do you want to hear about?`
     }
 
     function forgetBus() {
-        var which = body.result.parameters.which.toString();
+        var which = conv.parameters.which.toString();
 
         var requests = userInfo.requests = userInfo.requests.filter(r => JSON.parse(r).bus.toString() !== which);
         userRef.update({
@@ -210,7 +234,7 @@ What stop number do you want to hear about?`
     }
 
     function forgetStop() {
-        var which = body.result.parameters.which.toString();
+        var which = conv.parameters.which.toString();
 
         var requests = userInfo.requests = userInfo.requests.filter(r => JSON.parse(r).stop.toString() !== which);
         userRef.update({
@@ -220,13 +244,30 @@ What stop number do you want to hear about?`
         ask([`Done. I've forgotten about stop number ${spacedOut(which)}.`], [`Done. I've forgotten about stop number ${which}.`])
     }
 
+    function addStop() {
+        var stop = +conv.parameters.stopNumber;
+        if (stop < 1000 || stop > 9999) {
+            var msg = 'Stop numbers are 4 digit numbers. Please try again!';
+            ask([msg], [msg]);
+            return;
+        }
+
+        conv.data.stop = stop;
+
+        return announceStopMultiple([{
+            stop: stop
+        }], true, true);
+    }
+
     function whichBusAtStop() {
+
+        // var bus = app.getContextArgument('actions_intent_option', 'OPTION').value
+        // var stop = app.getContextArgument('_actions_on_google_', 'stopNumber').value
         // var bus = body.result.parameters.bus;
-
-        var bus = app.getContextArgument('actions_intent_option', 'OPTION').value
-        var stop = app.getContextArgument('_actions_on_google_', 'stopNumber').value
-            //var stop = body.result.parameters.stopNumber;
-
+        //var stop = body.result.parameters.stopNumber;
+        // var bus = conv.parameters.bus;
+        var bus = conv.arguments.parsed.input.OPTION;
+        var stop = conv.parameters.stopNumber || conv.data.stop;
 
 
         console.log('bus/stop', bus, stop);
@@ -240,14 +281,19 @@ What stop number do you want to hear about?`
             return;
         }
 
-
-        announceStopMultiple([{
+        return announceStopMultiple([{
             stop: stop,
             bus: bus
         }], true);
     }
 
-    function announceStopMultiple(stopInfos, saveForFuture, addingNewStop) {
+    async function testCalls() {
+        var result = await externalInfo.testCalls();
+        console.log('resultOK', result);
+        ask(['Done1'], ['Done1']);
+    }
+
+    async function announceStopMultiple(stopInfos, saveForFuture, addingNewStop) {
         var speech = [];
         var text = [];
 
@@ -258,87 +304,90 @@ What stop number do you want to hear about?`
             var knownList = stopsWithMultipleBuses[stop];
             if (knownList) {
                 console.log('known list!', knownList);
-                askWhichBusAtStop(stop, knownList)
-                return;
+                return askWhichBusAtStop(stop, knownList)
             }
         }
 
-        externalInfo.getBusPages(stopInfos, addingNewStop, function(infoList) {
-            //Aug 30 2017 - 21:46:00 *
-            if (infoList.length === 0) {
-                var msg = `Sorry, I couldn't find any active buses for that stop!`;
-                text.push(msg);
-                speech.push(msg);
-                return;
-            }
+        var infoList = await externalInfo.getBusPages(stopInfos, addingNewStop);
 
-            if (addingNewStop && infoList.length === 1 && infoList[0].busList) {
-                var busList = infoList[0].busList;
+        console.log('AFTER AWAIT', infoList);
 
-                stopsWithMultipleBuses[stopInfos[0].stop] = busList;
-
-                askWhichBusAtStop(stopInfos[0].stop, busList)
-                return;
-            }
-
-            infoList.forEach(function(info) {
-                console.log('result', info);
-
-                if (info.error) {
-                    // TODO: handle when some are error and others are good
-                    text.push(info.error);
-                    speech.push(info.error);
-                    return;
-                }
-
-                var when = info.when;
-
-                info.realtime = when.slice(-1) === '*';
-                if (info.realtime) {
-                    when = when.slice(0, -2);
-                }
-
-                const next = moment.tz(when, 'MMM DD YYYY - HH:mm:ss', true, calgaryTimeZone)
-
-
-                // console.log(next.format())
-
-                info.howSoonMin = next.diff(now, 'minutes');
-                info.howSoon = now.to(next);
-            });
-
-
-            infoList.sort(function(a, b) {
-                return (a.howSoonMin || 999) < (b.howSoonMin || 999) ? -1 : 1;
-            });
-
-
-            infoList.forEach(function(info) {
-                if (info.error || info.busList) {
-                    return;
-                }
-
-                const howSoonMin = info.howSoonMin;
-                const howSoon = info.howSoon;
-
-                // console.log(howSoon);
-                // console.log('how soon', howSoonMin)
-                if (howSoonMin > 120) {
-                    text.push(`${getRouteName(info.bus)} isn't scheduled at that stop within the next couple of hours.`)
-                    speech.push(`${getRouteName(info.bus, true)} isn't scheduled at that stop within the next couple of hours.`)
-                    return;
-                }
-
-                text.push(`${getRouteName(info.bus)} ${info.realtime ? 'is leaving' : 'should leave'} ${howSoon} from ${getStopName(info.stop)}.`)
-                speech.push(`${getRouteName(info.bus, true)} ${info.realtime ? 'is leaving' : 'should leave'} ${howSoon} from ${getStopName(info.stop, true)}.`)
-
-                if (saveForFuture) {
-                    storeRequestTime(now, info.stop, info.bus);
-                }
-            });
-
+        if (infoList.length === 0) {
+            var msg = `Sorry, I couldn't find any active buses for that stop!`;
+            text.push(msg);
+            speech.push(msg);
             ask(speech, text);
+            return;
+        }
+
+        if (addingNewStop && infoList.length === 1 && infoList[0].busList) {
+            var busList = infoList[0].busList;
+
+            stopsWithMultipleBuses[stopInfos[0].stop] = busList;
+
+            console.log('returning 1');
+            return askWhichBusAtStop(stopInfos[0].stop, busList);
+        }
+
+        infoList.forEach(function(info) {
+            console.log('result', info);
+
+            if (info.error) {
+                // TODO: handle when some are error and others are good
+                text.push(info.error);
+                speech.push(info.error);
+                ask(speech, text);
+                return Promise.resolve();
+            }
+
+            var when = info.when;
+
+            info.realtime = when.slice(-1) === '*';
+            if (info.realtime) {
+                when = when.slice(0, -2);
+            }
+
+            const next = moment.tz(when, 'MMM DD YYYY - HH:mm:ss', true, calgaryTimeZone)
+
+
+            // console.log(next.format())
+
+            info.howSoonMin = next.diff(now, 'minutes');
+            info.howSoon = now.to(next);
         });
+
+
+        infoList.sort(function(a, b) {
+            return (a.howSoonMin || 999) < (b.howSoonMin || 999) ? -1 : 1;
+        });
+
+
+        infoList.forEach(function(info) {
+            if (info.error || info.busList) {
+                return;
+            }
+
+            const howSoonMin = info.howSoonMin;
+            const howSoon = info.howSoon;
+
+            // console.log(howSoon);
+            // console.log('how soon', howSoonMin)
+            if (howSoonMin > 120) {
+                text.push(`${getRouteName(info.bus)} isn't scheduled at that stop within the next couple of hours.`)
+                speech.push(`${getRouteName(info.bus, true)} isn't scheduled at that stop within the next couple of hours.`)
+                return;
+            }
+
+            text.push(`${getRouteName(info.bus)} ${info.realtime ? 'is leaving' : 'should leave'} ${howSoon} from ${getStopName(info.stop)}.`)
+            speech.push(`${getRouteName(info.bus, true)} ${info.realtime ? 'is leaving' : 'should leave'} ${howSoon} from ${getStopName(info.stop, true)}.`)
+
+            if (saveForFuture) {
+                storeRequestTime(now, info.stop, info.bus);
+            }
+        });
+
+        ask(speech, text);
+
     }
 
     function getRouteName(routeNum, forSpeech, nameOnly) {
@@ -367,86 +416,97 @@ What stop number do you want to hear about?`
             return +a < +b ? -1 : 1
         });
 
-        var askList = app.buildList('Buses using stop ' + stop);
+
         var busStrList = [];
-        var speechList = [];
+        var speechList = ['Multiple routes use that stop. Which route number are you interested in? '];
         var numInList = busList.length;
 
         var askListTemp = [];
 
         busList.forEach(function(bNum, i) {
-            var bStr = '' + bNum;
-            busStrList.push(bStr);
+            var title = '' + bNum;
+            busStrList.push(title);
             var bNameShort = getRouteName(bNum, false, true);
-            var bNameLong = getRouteName(bNum, false, false);
-            var synonyms = [bStr, bNameShort]
+            var description = getRouteName(bNum, false, false);
+            var synonyms = [title, bNameShort]
                 .concat(bNameShort
                     .split(' '));
-            console.log(bNameLong);
+            console.log(description);
             askListTemp.push({
-                    bStr,
+                optionInfo: {
+                    key: title,
                     synonyms,
-                    bNameLong
-                })
-                // askList.addItems(
-                //     app
-                //     .buildOptionItem(bStr, synonyms)
-                //     .setTitle(bStr)
-                //     .setDescription(bName)
-                // );
+                },
+                title,
+                description
+            });
+            // askList.addItems(
+            //     app
+            //     .buildOptionItem(bStr, synonyms)
+            //     .setTitle(bStr)
+            //     .setDescription(bName)
+            // );
 
             if (i === numInList - 1) {
                 speechList.push(' or ');
             }
-            speechList.push(bNameLong);
+            speechList.push(description);
         });
         // console.log('before', askListTemp);
         removeDuplicates(askListTemp);
         // console.log('after', askListTemp);
 
-        askListTemp.forEach(function(info) {
-            askList.addItems(
-                app
-                .buildOptionItem(info.bStr, info.synonyms)
-                .setTitle(info.bStr)
-                .setDescription(info.bNameLong)
-                // .setImage('data:image/svg+xml;charset=US-ASCII,<%3Fxml%20version%3D"1.0"%20encoding%3D"utf-8"%3F><!DOCTYPE%20svg%20PUBLIC%20"-%2F%2FW3C%2F%2FDTD%20SVG%201.1%2F%2FEN"%20"http%3A%2F%2Fwww.w3.org%2FGraphics%2FSVG%2F1.1%2FDTD%2Fsvg11.dtd"><svg%20version%3D"1.1"%20id%3D"Layer_1"%20xmlns%3D"http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg"%20xmlns%3Axlink%3D"http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink"%20x%3D"0px"%20y%3D"0px"%20%20viewBox%3D"0%200%2030%2030"%20enable-background%3D"new%200%200%2030%2030"%20xml%3Aspace%3D"preserve"%20width%3D"30"%20height%3D"30"><g>%20<path%20fill%3D"%234F5D73"%20d%3D"M8.3%2C28.5c0%2C0.8-0.7%2C1.5-1.5%2C1.5H5.3c-0.8%2C0-1.5-0.7-1.5-1.5v-8.2c0-0.8%2C0.7-1.5%2C1.5-1.5h1.5%20%20c0.8%2C0%2C1.5%2C0.7%2C1.5%2C1.5V28.5z"%2F>%20<path%20fill%3D"%234F5D73"%20d%3D"M26.3%2C28.5c0%2C0.8-0.7%2C1.5-1.5%2C1.5h-1.5c-0.8%2C0-1.5-0.7-1.5-1.5v-8.2c0-0.8%2C0.7-1.5%2C1.5-1.5h1.5%20%20c0.8%2C0%2C1.5%2C0.7%2C1.5%2C1.5V28.5z"%2F>%20<rect%20x%3D"1.5"%20y%3D"17.6"%20fill%3D"%23B83A3F"%20width%3D"26.9"%20height%3D"9.3"%2F>%20<path%20fill%3D"%23B83A3F"%20d%3D"M27.9%2C3.8C25.5%2C0%2C24.4%2C0%2C16%2C0H14C5.6%2C0%2C4.5%2C0%2C2.1%2C3.8c-0.2%2C2.8-0.6%2C11-0.6%2C11V18H14H16h12.4v-3.2%20%20C28.5%2C14.8%2C28.1%2C6.5%2C27.9%2C3.8z"%2F>%20<path%20fill%3D"%23AEDFF4"%20d%3D"M26.2%2C12.8l-0.5-7.5h-9.1v0H4.3l-0.5%2C7.5c-0.3%2C2.6%2C2.8%2C2.3%2C2.8%2C2.3h6.8v0h10C23.4%2C15.1%2C26.5%2C15.4%2C26.2%2C12.8%20%20z"%2F>%20<path%20fill%3D"%23FFFFFF"%20d%3D"M21.5%2C3.4c0%2C0.4-0.3%2C0.7-0.7%2C0.7H9.3c-0.4%2C0-0.7-0.3-0.7-0.7V2.3c0-0.4%2C0.3-0.7%2C0.7-0.7h11.5%20%20c0.4%2C0%2C0.7%2C0.3%2C0.7%2C0.7V3.4z"%2F>%20<circle%20fill%3D"%23E0995E"%20cx%3D"6"%20cy%3D"22.5"%20r%3D"1.5"%2F>%20<circle%20fill%3D"%23E0995E"%20cx%3D"24"%20cy%3D"22.5"%20r%3D"1.5"%2F><%2Fg><%2Fsvg>', 'Math & prime numbers')
-            );
+        // askListTemp.forEach(function (info) {
+        //     // askList.addItems(
+        //     //     app
+        //     //     .buildOptionItem(info.bStr, info.synonyms)
+        //     //     .setTitle(info.bStr)
+        //     //     .setDescription(info.bNameLong)
+        //     //     // .setImage('data:image/svg+xml;charset=US-ASCII,<%3Fxml%20version%3D"1.0"%20encoding%3D"utf-8"%3F><!DOCTYPE%20svg%20PUBLIC%20"-%2F%2FW3C%2F%2FDTD%20SVG%201.1%2F%2FEN"%20"http%3A%2F%2Fwww.w3.org%2FGraphics%2FSVG%2F1.1%2FDTD%2Fsvg11.dtd"><svg%20version%3D"1.1"%20id%3D"Layer_1"%20xmlns%3D"http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg"%20xmlns%3Axlink%3D"http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink"%20x%3D"0px"%20y%3D"0px"%20%20viewBox%3D"0%200%2030%2030"%20enable-background%3D"new%200%200%2030%2030"%20xml%3Aspace%3D"preserve"%20width%3D"30"%20height%3D"30"><g>%20<path%20fill%3D"%234F5D73"%20d%3D"M8.3%2C28.5c0%2C0.8-0.7%2C1.5-1.5%2C1.5H5.3c-0.8%2C0-1.5-0.7-1.5-1.5v-8.2c0-0.8%2C0.7-1.5%2C1.5-1.5h1.5%20%20c0.8%2C0%2C1.5%2C0.7%2C1.5%2C1.5V28.5z"%2F>%20<path%20fill%3D"%234F5D73"%20d%3D"M26.3%2C28.5c0%2C0.8-0.7%2C1.5-1.5%2C1.5h-1.5c-0.8%2C0-1.5-0.7-1.5-1.5v-8.2c0-0.8%2C0.7-1.5%2C1.5-1.5h1.5%20%20c0.8%2C0%2C1.5%2C0.7%2C1.5%2C1.5V28.5z"%2F>%20<rect%20x%3D"1.5"%20y%3D"17.6"%20fill%3D"%23B83A3F"%20width%3D"26.9"%20height%3D"9.3"%2F>%20<path%20fill%3D"%23B83A3F"%20d%3D"M27.9%2C3.8C25.5%2C0%2C24.4%2C0%2C16%2C0H14C5.6%2C0%2C4.5%2C0%2C2.1%2C3.8c-0.2%2C2.8-0.6%2C11-0.6%2C11V18H14H16h12.4v-3.2%20%20C28.5%2C14.8%2C28.1%2C6.5%2C27.9%2C3.8z"%2F>%20<path%20fill%3D"%23AEDFF4"%20d%3D"M26.2%2C12.8l-0.5-7.5h-9.1v0H4.3l-0.5%2C7.5c-0.3%2C2.6%2C2.8%2C2.3%2C2.8%2C2.3h6.8v0h10C23.4%2C15.1%2C26.5%2C15.4%2C26.2%2C12.8%20%20z"%2F>%20<path%20fill%3D"%23FFFFFF"%20d%3D"M21.5%2C3.4c0%2C0.4-0.3%2C0.7-0.7%2C0.7H9.3c-0.4%2C0-0.7-0.3-0.7-0.7V2.3c0-0.4%2C0.3-0.7%2C0.7-0.7h11.5%20%20c0.4%2C0%2C0.7%2C0.3%2C0.7%2C0.7V3.4z"%2F>%20<circle%20fill%3D"%23E0995E"%20cx%3D"6"%20cy%3D"22.5"%20r%3D"1.5"%2F>%20<circle%20fill%3D"%23E0995E"%20cx%3D"24"%20cy%3D"22.5"%20r%3D"1.5"%2F><%2Fg><%2Fsvg>', 'Math & prime numbers')
+        //     // );
+        //     askList.items.push({
+        //         [info.bStr]: {
+        //             synonyms: info.synonyms,
+        //             title: info.bStr,
+        //             description: info.bNameLong,
+        //         }
+        //     });
+        // });
+        // var askList = app.buildList('Buses using stop ' + stop);
+        var askList = new List({
+            title: 'Buses using stop ' + stop,
+            items: askListTemp
         });
 
-        // askList.addItems(app.buildOptionItem('RECIPES', ['recipes', 'recipe', '42 recipes'])
-        //     .setTitle('42 recipes with 42 ingredients')
-        //     .setDescription('Here\'s a beautifully simple recipe that\'s full ' +
-        //         'of flavor! All you need is some ginger and…')
-        //     .setImage('http://example.com/recipe', 'Recipe')
-        // );
-
-        app.setContext('contextWhichBus', 2);
-        app.askWithList(
-            app
-            .buildRichResponse()
-            .addSimpleResponse({
-                displayText: 'Multiple routes use that stop. Which route number are you interested in?',
-                speech: 'Multiple routes use that stop. Which route number are you interested in? ' +
-                    speechList.join(', ')
-            })
-            .addSuggestions(busStrList),
-            askList);
-
+        // app.setContext('contextWhichBus', 2);
+        conv.data.contextWhichBus = 2;
+        // app.askWithList(
+        //     app
+        //     .buildRichResponse()
+        //     .addSimpleResponse({
+        //         displayText: 'Multiple routes use that stop. Which route number are you interested in?',
+        //         speech: 'Multiple routes use that stop. Which route number are you interested in? ' +
+        //             speechList.join(', ')
+        //     })
+        //     .addSuggestions(busStrList),
+        //     askList);
+        askWithoutWhatElse(speechList, ['Multiple routes use that stop. Which route number are you interested in?']);
+        conv.ask(new Suggestions(busStrList));
+        conv.ask(askList);
     }
 
     function removeDuplicates(list) {
         var termCount = {};
         // two passes
         list.forEach(function(info) {
-            info.synonyms.forEach(function(s) {
+            info.optionInfo.synonyms.forEach(function(s) {
                 termCount[s] = (termCount[s] || 0) + 1;
-            })
+            });
         });
         list.forEach(function(info) {
-            info.synonyms = info.synonyms.filter(function(s) {
+            info.optionInfo.synonyms = info.optionInfo.synonyms.filter(function(s) {
                 return termCount[s] === 1;
-            })
+            });
         });
     }
 
@@ -522,10 +582,10 @@ What stop number do you want to hear about?`
 
         speech = speech.join(' ');
         text = text.join(' ');
-        app.ask({
+        conv.ask(new SimpleResponse({
             speech: '<speak>' + speech + '</speak>',
-            displayText: text
-        });
+            text: text
+        }));
         console.log('Text:', text)
         console.log('Speech:', speech)
     }
@@ -592,7 +652,7 @@ What stop number do you want to hear about?`
                 lng: coordRaw.longitude
             };
             console.log(`${coord.lat},${coord.lng}`);
-            externalInfo.getNearbyStops(coord, function (info) {
+            return externalInfo.getNearbyStops(coord, function (info) {
                 var speech = [];
                 var text = [];
 
@@ -801,36 +861,107 @@ What stop number do you want to hear about?`
         ask(speech, text);
     }
 
-    function testDev1() {
-        //testDev2
-        externalInfo.calloutToApiAi('testDev2', body.sessionId);
+    // function testDev1() {
+    //     //testDev2
+    //     externalInfo.calloutToApiAi('testDev2', body.sessionId);
 
-        ask(['this is test dev 1'], ['this is test dev 1'])
-    }
+    //     ask(['this is test dev 1'], ['this is test dev 1'])
+    // }
 
     function testDevD() {
         var msg = `My host's name is: ${os.hostname()}.`;
         ask([msg], [msg])
     }
 
+    function getUserInfo() {
+
+        userId = conv.data.Id || conv.user.storage.Id || '';
+
+        if (!userId) {
+            var verified = conv.user.verification === 'VERIFIED';
+
+            if (verified) {
+                userId = general.makeUserId();
+                conv.user.storage.Id = userId;
+                conv.data.Id = userId;
+                console.log('New id: ', conv.user.storage.Id);
+            } else {
+                userId = '';
+            }
+        }
+
+        if (!userId) {
+            console.log('No id');
+            return;
+        }
+
+        // user.storage sometimes doesn't work
+        conv.data.Id = userId;
+
+        console.log('Using id: ', userId);
+
+        // determine who this is
+        // userId = general.extractUserId(request);
+        // console.log('userId', userId)
+        userInfo = knownUsers[userId];
+        if (!userInfo) {
+            userInfo = knownUsers[userId] = {
+                times: 1
+            };
+        }
+        console.log('userInfo', userInfo);
+
+        userRef = dbHelper.knownUsersRef.child(userId);
+
+        var times = (userInfo.times || 1) + 1;
+        userInfo.last_access = now;
+        userInfo.times = times;
+
+        userRef.update({
+            times: times,
+            last_access: now
+        });
+    }
+
+
     let actionMap = new Map();
+
+    appV2.fallback((incomingConv) => {
+
+        // assign to global
+        conv = incomingConv;
+        // console.log('Conv', conv);
+        console.log('User Storage', conv.user.storage);
+        console.log('Data', conv.data);
+
+        conv.isDeepLink = conv.type === 'NEW';
+
+        getUserInfo();
+
+        // console.log('User', conv.user);
+        console.log('Parameters', conv.parameters);
+        console.log('Arguments', conv.arguments);
+        // console.log('Type', conv.type);
+        // console.log('Device', conv.device);
+
+        const fn = actionMap.get(conv.action);
+
+        if (fn) {
+            console.log(`Intent: ${conv.action} (${conv.intent}) --> ${fn.name}`);
+            return fn();
+        }
+
+        conv.ask(`I couldn't understand. Can you say that again and again?`);
+    });
+
+
     actionMap.set('input.welcome', welcome);
     actionMap.set('reset.bus.times', forgetAll);
 
     actionMap.set('forget.bus', forgetBus);
     actionMap.set('forget.stop', forgetStop);
 
-    actionMap.set('add.stop', function () {
-        var stop = +body.result.parameters.stopNumber;
-        if (stop < 1000 || stop > 9999) {
-            var msg = 'Stop numbers are 4 digit numbers. Please try again!';
-            ask([msg], [msg]);
-            return;
-        }
-        announceStopMultiple([{
-            stop: stop
-        }], true, true);
-    });
+    actionMap.set('add.stop', addStop);
     // action has hardcoded actions_intent_option event in it
     // actionMap.set('add.stop.whichbus', whichBusAtStop);
     actionMap.set('add.stop.fallback', whichBusAtStop);
@@ -841,10 +972,11 @@ What stop number do you want to hear about?`
     actionMap.set('who.am.i', whoAmI);
     actionMap.set('user.list', tellUsers);
 
-    actionMap.set('test.dev.1', testDev1);
+    // actionMap.set('test.dev.1', testDev1);
     actionMap.set('test.dev.d', testDevD);
+    actionMap.set('test.call', testCalls);
 
-    app.handleRequest(actionMap);
+    appV2(request, response);
 }
 
 

@@ -12,7 +12,24 @@ const cheerio = require('cheerio')
 //     encoding: null
 // };
 
-function getBusPages(stopInfos, addingNewStop, cb) {
+function testCalls() {
+    const caller = new ClientP();
+    const promises = [];
+    const url = `http://www.calgarytransit.com/nextride?stop_id=7712`;
+    promises.push(caller.getPromise(url));
+
+    return Promise.all(promises)
+        .then(result => {
+            console.log(result);
+            return Promise.resolve('ok');
+        })
+        .catch(result => {
+            console.log(result);
+            return Promise.reject('bad');
+        });
+}
+
+function getBusPages(stopInfos, addingNewStop) {
     const caller = new ClientP();
     const promises = [];
 
@@ -21,16 +38,17 @@ function getBusPages(stopInfos, addingNewStop, cb) {
         .filter((el, i, a) => i === a.indexOf(el));;
     console.log('need to get', stopInfos, stops);
 
+    var num = 1;
     stops.forEach(function(stop) {
         const url = `http://www.calgarytransit.com/nextride?stop_id=${stop}`;
         promises.push(caller.getPromise(url));
-        console.log('getting', url);
+        console.log(`getting promise #${num++}`, url);
     });
 
-    Promise.all(promises)
+    return Promise.all(promises)
         .then(results => {
             var infos = [];
-            console.log('get', results.length, 'responses')
+            console.log('got', results.length, 'responses');
             results.forEach(function(result) {
                 const data = result.data;
                 const widgetRawHtml = data.toString('utf8');
@@ -41,7 +59,7 @@ function getBusPages(stopInfos, addingNewStop, cb) {
                     console.log('invalid!');
                     info = {
                         error: $('#nextRideResult p').text()
-                    }
+                    };
                     infos.push(info);
                     return;
                 }
@@ -49,7 +67,7 @@ function getBusPages(stopInfos, addingNewStop, cb) {
 
                 var info;
                 if (addingNewStop && resultList.length > 1) {
-                    console.log('getting busList')
+                    console.log('getting busList');
                     info = {
                         busList: resultList.map(function(i, el) {
                             return $(el).find('.route').data('route_short_name');
@@ -90,9 +108,13 @@ function getBusPages(stopInfos, addingNewStop, cb) {
                     });
                 }
                 console.log(infos);
-            })
+            });
 
-            cb(infos);
+            return Promise.resolve(infos);
+        })
+        .catch(function(error) {
+            console.log('error', error);
+            return Promise.resolve(error);
         });
 }
 
@@ -108,7 +130,7 @@ function getNearbyStops(coord, cb) {
     url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coord.lat},${coord.lng}&key=${process.env.googleMapApi}`;
     promises.push(caller.getPromise(url));
 
-    Promise.all(promises)
+    return Promise.all(promises)
         .then(results => {
             var forCb = {};
             var resultNum = 1;
@@ -161,45 +183,46 @@ function getNearbyStops(coord, cb) {
 
 }
 
-function calloutToApiAi(event, sessionId) {
-    const caller = new Client();
-    var url = 'https://api.api.ai/v1/query?v=20150910';
-    var args = {
-        data: {
-            event: {
-                name: event
-            },
-            contexts: [{
-                name: 'person',
-                lifetime: 100,
-                parameters: {
-                    age: 10,
-                    name: "Glen"
-                }
-            }],
-            sessionId: sessionId,
-            lang: 'en'
-        },
-        headers: {
-            "Content-Type": "application/json", //; charset=utf-8
-            "Authorization": "Bearer " + process.env.apiaiClientToken
-        }
-    };
+// function calloutToApiAi(event, sessionId) {
+//     const caller = new Client();
+//     var url = 'https://api.api.ai/v1/query?v=20150910';
+//     var args = {
+//         data: {
+//             event: {
+//                 name: event
+//             },
+//             contexts: [{
+//                 name: 'person',
+//                 lifetime: 100,
+//                 parameters: {
+//                     age: 10,
+//                     name: "Glen"
+//                 }
+//             }],
+//             sessionId: sessionId,
+//             lang: 'en'
+//         },
+//         headers: {
+//             "Content-Type": "application/json", //; charset=utf-8
+//             "Authorization": "Bearer " + process.env.apiaiClientToken
+//         }
+//     };
 
-    setTimeout(function() {
-        console.log('args', args);
+//     setTimeout(function() {
+//         console.log('args', args);
 
-        caller.post(url, args, function(result) {
-            var data = result;
-            console.log('callout', JSON.stringify(data));
-        });
+//         caller.post(url, args, function(result) {
+//             var data = result;
+//             console.log('callout', JSON.stringify(data));
+//         });
 
-    }, 2000);
-}
+//     }, 2000);
+// }
 
 
 module.exports = {
     getBusPages,
-    calloutToApiAi,
-    getNearbyStops
+    // calloutToApiAi,
+    getNearbyStops,
+    testCalls
 };
