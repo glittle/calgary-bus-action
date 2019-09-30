@@ -183,7 +183,7 @@ What stop number do you want to hear about?`
                 // console.log('looking at', r.time, '--- not within', timeRange, diffUnit);
             });
 
-            console.log('buses at this time', inRange);
+            // console.log('buses at this time', inRange);
 
             if (inRange.length) {
                 var stops = inRange
@@ -194,7 +194,7 @@ What stop number do you want to hear about?`
                         }
                     })
                     .filter((el, i, a) => i === a.indexOf(el));
-                console.log('asking for', stops)
+                // console.log('asking for', stops)
                 return announceStopMultiple(stops);
 
             } else {
@@ -214,7 +214,7 @@ What stop number do you want to hear about?`
     }
 
     function listRemembered() {
-        console.log(userInfo.requests);
+        // console.log(userInfo.requests);
         var speech = [];
         var text = [];
 
@@ -223,13 +223,22 @@ What stop number do you want to hear about?`
             text.push(`I don't know which stops you want to hear about.`);
             speech.push(`I don't know which stops you want to hear about.`);
         } else {
-            list.forEach(function(stopInfo) {
-                var stopTime = JSON.parse(stopInfo);
-                const time1 = moment.tz(stopTime.time, "HHmm", true, calgaryTimeZone).format('h:mm a');
-
-                text.push(`At ${time1}, stop ${stopTime.stop} for bus ${stopTime.bus}.\n`);
-                speech.push(`At ${time1}, stop ${spacedOut(stopTime.stop)} for bus ${stopTime.bus}. `);
+            var stops = list.map(function(item) {
+                return JSON.parse(item);
             });
+            stops.sort(function(a, b) {
+                return a.time < b.time ? -1 : 1;
+            });
+            console.log(stops);
+            stops.forEach(function(stopInfo) {
+                var time1 = moment.tz(stopInfo.time, 'HHmm', true, calgaryTimeZone).format('h:mm a');
+
+                text.push(`At ${time1}, stop ${stopInfo.stop} for bus ${stopInfo.bus}.\n`);
+                speech.push(`At ${time1}, stop ${spacedOut(stopInfo.stop)} for bus ${stopInfo.bus}. `);
+            });
+
+            text.push(`You can tell me to forget about a route or stop, or all of them.`);
+            speech.push(`You can tell me to forget about a route or stop, or all of them.`);
         }
 
         ask(speech, text);
@@ -294,9 +303,9 @@ What stop number do you want to hear about?`
 
         console.log('bus/stop', bus, stop);
         // var knownList = stopsWithMultipleBuses[stop];
-        console.log('known list', stopsWithMultipleBuses);
+        // console.log('known list', stopsWithMultipleBuses);
 
-        console.log(bus, stop);
+        // console.log(bus, stop);
         if (!stop) {
             var msg = `Sorry, I didn't get the stop number.`
             ask([msg], [msg]);
@@ -326,14 +335,14 @@ What stop number do you want to hear about?`
         if (addingNewStop) {
             var knownList = stopsWithMultipleBuses[stop];
             if (knownList) {
-                console.log('known list!', knownList);
+                // console.log('known list!', knownList);
                 return askWhichBusAtStop(stop, knownList);
             }
         }
 
         var infoList = await externalInfo.getBusPages(stopInfos, addingNewStop);
 
-        console.log('AFTER AWAIT', infoList);
+        // console.log('AFTER AWAIT', infoList);
 
         if (infoList.length === 0) {
             text.push(`Sorry, I couldn't find any active buses for stop ${stop}!`);
@@ -347,12 +356,12 @@ What stop number do you want to hear about?`
 
             stopsWithMultipleBuses[stopInfos[0].stop] = busList;
 
-            console.log('returning 1');
+            // console.log('returning 1');
             return askWhichBusAtStop(stopInfos[0].stop, busList);
         }
 
         infoList.forEach(function(info) {
-            console.log('result', info);
+            // console.log('result', info);
 
             if (info.error) {
                 // TODO: handle when some are error and others are good
@@ -380,9 +389,10 @@ What stop number do you want to hear about?`
 
 
         infoList.sort(function(a, b) {
-            return (a.howSoonMin || 999) < (b.howSoonMin || 999) ? -1 : 1;
+            return (a.howSoonMin) < (b.howSoonMin) ? -1 : 1;
         });
 
+        console.log(infoList);
 
         infoList.forEach(function(info) {
             if (info.error || info.busList) {
@@ -453,7 +463,7 @@ What stop number do you want to hear about?`
             var synonyms = [title, bNameShort]
                 .concat(bNameShort
                     .split(' '));
-            console.log(description);
+            // console.log(description);
             askListTemp.push({
                 optionInfo: {
                     key: title,
@@ -677,7 +687,7 @@ What stop number do you want to hear about?`
                 lat: coordRaw.latitude,
                 lng: coordRaw.longitude
             };
-            console.log(`${coord.lat},${coord.lng}`);
+            // console.log(`${coord.lat},${coord.lng}`);
             return externalInfo.getNearbyStops(coord, function (info) {
                 var speech = [];
                 var text = [];
@@ -941,7 +951,7 @@ What stop number do you want to hear about?`
                 times: 1
             };
         }
-        console.log('userInfo', userInfo);
+        // console.log('userInfo', userInfo);
 
         userRef = dbHelper.knownUsersRef.child(userId);
 
@@ -963,16 +973,16 @@ What stop number do you want to hear about?`
         // assign to global
         conv = incomingConv;
         // console.log('Conv', conv);
-        console.log('User Storage', conv.user.storage);
-        console.log('Data', conv.data);
+        // console.log('User Storage', conv.user.storage);
+        // console.log('Data', conv.data);
 
         conv.isDeepLink = conv.type === 'NEW';
 
         getUserInfo();
 
         // console.log('User', conv.user);
-        console.log('Parameters', conv.parameters);
-        console.log('Arguments', conv.arguments);
+        // console.log('Parameters', conv.parameters);
+        // console.log('Arguments', conv.arguments);
         // console.log('Type', conv.type);
         // console.log('Device', conv.device);
 

@@ -36,19 +36,19 @@ function getBusPages(stopInfos, addingNewStop) {
     var stops = stopInfos
         .map(el => el.stop)
         .filter((el, i, a) => i === a.indexOf(el));;
-    console.log('need to get', stopInfos, stops);
+    // console.log('need to get', stopInfos, stops);
 
     var num = 1;
     stops.forEach(function(stop) {
         const url = `http://www.calgarytransit.com/nextride?stop_id=${stop}`;
         promises.push(caller.getPromise(url));
-        console.log(`getting promise #${num++}`, url);
+        // console.log(`getting promise #${num++}`, url);
     });
 
     return Promise.all(promises)
         .then(results => {
             var infos = [];
-            console.log('got', results.length, 'responses');
+            // console.log('got', results.length, 'responses');
             results.forEach(function(result) {
                 const data = result.data;
                 const widgetRawHtml = data.toString('utf8');
@@ -56,7 +56,7 @@ function getBusPages(stopInfos, addingNewStop) {
                 var invalid = $('#nextRideResult').children().length === 1;
 
                 if (invalid) {
-                    console.log('invalid!');
+                    // console.log('invalid!');
                     info = {
                         error: $('#nextRideResult p').text()
                     };
@@ -67,7 +67,7 @@ function getBusPages(stopInfos, addingNewStop) {
 
                 var info;
                 if (addingNewStop && resultList.length > 1) {
-                    console.log('getting busList');
+                    // console.log('getting busList');
                     info = {
                         busList: resultList.map(function(i, el) {
                             return $(el).find('.route').data('route_short_name');
@@ -77,7 +77,7 @@ function getBusPages(stopInfos, addingNewStop) {
                 } else {
                     var stop = $('.stop').data('stop_id');
                     // also has lat/long too!
-                    console.log(stop, 'has', resultList.length, 'entries')
+                    // console.log(stop, 'has', resultList.length, 'entries')
                     if (resultList.length === 0) {
                         var noResult = ($('.results').text() || 'No info found').trim();
                         infos.push({
@@ -94,10 +94,10 @@ function getBusPages(stopInfos, addingNewStop) {
                             // use == to match string/number
                             return el.stop == stop && el.bus == bus;
                         });
-                        console.log(stop, bus, matched ? 'found' : 'not requested');
+                        // console.log(stop, bus, matched ? 'found' : 'not requested');
                         if (matched) {
                             var when = result.find('.trip-item-first .trip-item-countdown').text();
-                            console.log('adding at', when);
+                            // console.log('adding at', when);
                             info = {
                                 stop: stop,
                                 bus: bus,
@@ -107,7 +107,7 @@ function getBusPages(stopInfos, addingNewStop) {
                         }
                     });
                 }
-                console.log(infos);
+                // console.log(infos);
             });
 
             return Promise.resolve(infos);
