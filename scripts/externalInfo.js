@@ -137,14 +137,15 @@ function getNearbyStops(coord, cb) {
             results.forEach(function(result) {
 
                 const data = result.data;
-                const string = data.toString('utf8');
+                const dataString = data.toString('utf8');
 
-                // console.log('result', resultNum++, JSON.stringify(string));
+                // console.log('result', resultNum, dataString);
+                // console.log('result', resultNum++, JSON.stringify(dataString));
 
-                var yycParts = string.split('a(');
+                var yycParts = dataString.split('a(');
                 if (yycParts.length === 2) {
                     // bus info
-                    console.log('stops info')
+                    // console.log('stops info')
                     var data2 = yycParts[1].slice(0, -2);
                     // console.log(info);
                     var info = JSON.parse(data2);
@@ -166,7 +167,7 @@ function getNearbyStops(coord, cb) {
                     if (data && data.results && data.results[0] && data.results[0].formatted_address) {
                         forCb.assumedAddress = data.results[0].formatted_address.split(',')[0];
                     } else {
-                        console.log('Error getting location results', string);
+                        console.log('Error getting location results', dataString);
                     }
                     // console.log(data.assumedAddress);
                 }

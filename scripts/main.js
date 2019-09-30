@@ -213,6 +213,28 @@ What stop number do you want to hear about?`
         }
     }
 
+    function listRemembered() {
+        console.log(userInfo.requests);
+        var speech = [];
+        var text = [];
+
+        var list = userInfo.requests;
+        if (!list || list.length === 0) {
+            text.push(`I don't know which stops you want to hear about.`);
+            speech.push(`I don't know which stops you want to hear about.`);
+        } else {
+            list.forEach(function(stopInfo) {
+                var stopTime = JSON.parse(stopInfo);
+                const time1 = moment.tz(stopTime.time, "HHmm", true, calgaryTimeZone).format('h:mm a');
+
+                text.push(`At ${time1}, stop ${stopTime.stop} for bus ${stopTime.bus}.\n`);
+                speech.push(`At ${time1}, stop ${spacedOut(stopTime.stop)} for bus ${stopTime.bus}. `);
+            });
+        }
+
+        ask(speech, text);
+    }
+
     function forgetAll() {
         userInfo.requests = [];
         userRef.update({
@@ -299,12 +321,13 @@ What stop number do you want to hear about?`
 
         const now = moment.tz(calgaryTimeZone);
 
+        var stop = stopInfos[0].stop;
+
         if (addingNewStop) {
-            var stop = stopInfos[0].stop;
             var knownList = stopsWithMultipleBuses[stop];
             if (knownList) {
                 console.log('known list!', knownList);
-                return askWhichBusAtStop(stop, knownList)
+                return askWhichBusAtStop(stop, knownList);
             }
         }
 
@@ -313,9 +336,8 @@ What stop number do you want to hear about?`
         console.log('AFTER AWAIT', infoList);
 
         if (infoList.length === 0) {
-            var msg = `Sorry, I couldn't find any active buses for that stop!`;
-            text.push(msg);
-            speech.push(msg);
+            text.push(`Sorry, I couldn't find any active buses for stop ${stop}!`);
+            speech.push(`Sorry, I couldn't find any active buses for stop ${spacedOut(stop)}!`);
             ask(speech, text);
             return;
         }
@@ -347,7 +369,7 @@ What stop number do you want to hear about?`
                 when = when.slice(0, -2);
             }
 
-            const next = moment.tz(when, 'MMM DD YYYY - HH:mm:ss', true, calgaryTimeZone)
+            const next = moment.tz(when, 'MMM DD YYYY - HH:mm:ss', true, calgaryTimeZone);
 
 
             // console.log(next.format())
@@ -373,8 +395,8 @@ What stop number do you want to hear about?`
             // console.log(howSoon);
             // console.log('how soon', howSoonMin)
             if (howSoonMin > 120) {
-                text.push(`${getRouteName(info.bus)} isn't scheduled at that stop within the next couple of hours.`)
-                speech.push(`${getRouteName(info.bus, true)} isn't scheduled at that stop within the next couple of hours.`)
+                text.push(`${getRouteName(info.bus)} isn't scheduled at ${getStopName(info.stop)} within the next couple of hours.`)
+                speech.push(`${getRouteName(info.bus, true)} isn't scheduled at ${getStopName(info.stop, true)} within the next couple of hours.`)
                 return;
             }
 
@@ -418,7 +440,7 @@ What stop number do you want to hear about?`
 
 
         var busStrList = [];
-        var speechList = ['Multiple routes use that stop. Which route number are you interested in? '];
+        var speechList = [`Multiple routes use stop ${spacedOut(stop)}. Which route number are you interested in? `];
         var numInList = busList.length;
 
         var askListTemp = [];
@@ -490,7 +512,7 @@ What stop number do you want to hear about?`
         //     })
         //     .addSuggestions(busStrList),
         //     askList);
-        askWithoutWhatElse(speechList, ['Multiple routes use that stop. Which route number are you interested in?']);
+        askWithoutWhatElse(speechList, [`Multiple routes use stop ${stop}. Which route number are you interested in?`]);
         conv.ask(new Suggestions(busStrList));
         conv.ask(askList);
     }
@@ -624,30 +646,34 @@ What stop number do you want to hear about?`
     }
 
     function getNearbyStops1() {
-        var speech = [];
-        var text = [];
+        // var speech = [];
+        // var text = [];
         // text.push(`Sorry, I can't get nearby stops from Calgary Transit right now.`);
         // speech.push(`Sorry, I can't get nearby stops from Calgary Transit right now.`);
         // askWithoutWhatElse(speech, text);
         // return;
 
-        app.askForPermission('Okay', app.SupportedPermissions.DEVICE_PRECISE_LOCATION);
+        // app.askForPermission('Okay', app.SupportedPermissions.DEVICE_PRECISE_LOCATION);
+
+        conv.ask(new Permission({
+            context: 'Okay, ',
+            permissions: 'DEVICE_PRECISE_LOCATION'
+        }));
+
     }
 
     function getNearbyStops2() {
+        const location = conv.device.location;
 
-        if (app.isPermissionGranted()) {
+        if (location) {
             /*
                 "coordinates": {
                   "latitude": 51.1004367,
                   "longitude": -113.95960439999999
                 }
             */
-
-            var loc = app.getDeviceLocation();
-            console.log(loc)
-            var coordRaw = loc.coordinates;
-            var coord = {
+            var coordRaw = location.coordinates;
+            let coord = {
                 lat: coordRaw.latitude,
                 lng: coordRaw.longitude
             };
@@ -683,12 +709,15 @@ What stop number do you want to hear about?`
                 text.push(`Google told me that you are near ${info.assumedAddress}. ${numDesc}`);
                 speech.push(`Google told me that you are near ${info.assumedAddress}. ${numDesc}`);
 
+                var stops = [];
                 combinedKeys.forEach(function (desc, i) {
                     var stopsRemaining = Object.keys(combined[desc]);
                     stopsRemaining.sort();
                     var first = stopsRemaining.shift();
-                    var stopsText = [first]
+                    var stopsText = [first];
                     var stopsSpeech = [spacedOut(first)];
+                    stops.push(first);
+
                     var numRemaining = stopsRemaining.length;
                     stopsRemaining.forEach(function (s, stopI) {
                         if (stopI === numRemaining - 1) {
@@ -698,9 +727,10 @@ What stop number do you want to hear about?`
                             stopsText.push(', ');
                             stopsSpeech.push(', ');
                         }
-                        stopsText.push(s)
+                        stopsText.push(s);
                         stopsSpeech.push(spacedOut(s));
-                    })
+                        stops.push(s);
+                    });
 
                     text.push(`\n\n${fixAddress(desc, true)} - Stop${stopsText.length===1?'':'s'} ${stopsText.join('')}.`);
 
@@ -714,6 +744,8 @@ What stop number do you want to hear about?`
                 text.push('\n\nWhich stop number are you interested in?');
 
                 askWithoutWhatElse(speech, text);
+
+                conv.ask(new Suggestions(stops));
             });
             // console.log('main', stopsList);
             // var askList = app.buildList('Stops near ' + info.assumedAddress);
@@ -957,6 +989,7 @@ What stop number do you want to hear about?`
 
     actionMap.set('input.welcome', welcome);
     actionMap.set('reset.bus.times', forgetAll);
+    actionMap.set('my.bus.stops', listRemembered);
 
     actionMap.set('forget.bus', forgetBus);
     actionMap.set('forget.stop', forgetStop);
