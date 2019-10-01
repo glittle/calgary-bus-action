@@ -34,7 +34,7 @@ var stopsWithMultipleBuses = {}; // stored temporarily. Don't store in firebase 
 dbHelper.knownUsersRef.once('value', function(snapshot) {
     knownUsers = snapshot.val() || {};
     console.log('initial load from db', Object.keys(knownUsers).length, 'users.');
-    // console.log(knownUsers);
+    console.log(knownUsers);
 });
 
 
@@ -975,16 +975,26 @@ What stop number do you want to hear about?`
         // console.log('Conv', conv);
         // console.log('User Storage', conv.user.storage);
         // console.log('Data', conv.data);
+        // console.log(1,conv.arguments.input);
+        // console.log(2,conv.arguments.status);
+        // console.log(3,conv.arguments.status.input);
+        // console.log(4,conv.arguments.parsed.input.is_health_check);
+        // console.log(4,conv.arguments.input.is_health_check);
+        if (conv.arguments.parsed.input.is_health_check) {
+            conv.ask('Thanks for the health check!');
+            console.log('Health check');
+            return;
+        }
 
         conv.isDeepLink = conv.type === 'NEW';
 
         getUserInfo();
 
-        // console.log('User', conv.user);
-        // console.log('Parameters', conv.parameters);
-        // console.log('Arguments', conv.arguments);
-        // console.log('Type', conv.type);
-        // console.log('Device', conv.device);
+        console.log('User', conv.user);
+        console.log('Parameters', conv.parameters);
+        console.log('Arguments', conv.arguments);
+        console.log('Type', conv.type);
+        console.log('Device', conv.device);
 
         const fn = actionMap.get(conv.action);
 
