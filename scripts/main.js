@@ -1,18 +1,9 @@
 const {
     dialogflow,
-    BasicCard,
-    BrowseCarousel,
-    BrowseCarouselItem,
-    Button,
-    Carousel,
-    Image,
-    LinkOutSuggestion,
     List,
-    MediaObject,
     Permission,
     Suggestions,
     SimpleResponse,
-    Table,
 } = require('actions-on-google');
 
 const moment = require('moment-timezone');
@@ -24,9 +15,9 @@ const transit = require('./transitKnowledge');
 const dbHelper = require('./db');
 
 console.log(' ');
-console.log('======= SERVER RESTARTED ==============================');
+console.log('======= SERVER RESTARTED ' + new Date() + ' ==============================');
 
-const calgaryTimeZone = "America/Edmonton";
+const calgaryTimeZone = 'America/Edmonton';
 
 var knownUsers = {};
 var stopsWithMultipleBuses = {}; // stored temporarily. Don't store in firebase in case CT changes routes
@@ -34,7 +25,7 @@ var stopsWithMultipleBuses = {}; // stored temporarily. Don't store in firebase 
 dbHelper.knownUsersRef.once('value', function(snapshot) {
     knownUsers = snapshot.val() || {};
     console.log('initial load from db', Object.keys(knownUsers).length, 'users.');
-    console.log(knownUsers);
+    // console.log(knownUsers);
 });
 
 
@@ -153,7 +144,7 @@ What stop number do you want to hear about?`
 
             userInfo.requests.forEach(function(raw) {
                 var r = JSON.parse(raw);
-                const time1 = moment.tz(r.time, "HHmm", true, calgaryTimeZone);
+                const time1 = moment.tz(r.time, 'HHmm', true, calgaryTimeZone);
                 const test1 = time1.diff(now, diffUnit);
                 // console.log(time1.format(), test1);
 
@@ -191,7 +182,7 @@ What stop number do you want to hear about?`
                         return {
                             bus: el.bus,
                             stop: el.stop
-                        }
+                        };
                     })
                     .filter((el, i, a) => i === a.indexOf(el));
                 // console.log('asking for', stops)
@@ -199,9 +190,9 @@ What stop number do you want to hear about?`
 
             } else {
                 askWithoutWhatElse([
-                    `What stop number do you want to hear about?`
+                    'What stop number do you want to hear about?'
                 ], [
-                    `What stop number do you want to hear about?`
+                    'What stop number do you want to hear about?'
                 ]);
                 return;
             }
@@ -220,8 +211,8 @@ What stop number do you want to hear about?`
 
         var list = userInfo.requests;
         if (!list || list.length === 0) {
-            text.push(`I don't know which stops you want to hear about.`);
-            speech.push(`I don't know which stops you want to hear about.`);
+            text.push('I don\'t know which stops you want to hear about.');
+            speech.push('I don\'t know which stops you want to hear about.');
         } else {
             var stops = list.map(function(item) {
                 return JSON.parse(item);
@@ -237,8 +228,8 @@ What stop number do you want to hear about?`
                 speech.push(`At ${time1}, stop ${spacedOut(stopInfo.stop)} for bus ${stopInfo.bus}. `);
             });
 
-            text.push(`You can tell me to forget about a route or stop, or all of them.`);
-            speech.push(`You can tell me to forget about a route or stop, or all of them.`);
+            text.push('You can tell me to forget about a route or stop, or all of them.');
+            speech.push('You can tell me to forget about a route or stop, or all of them.');
         }
 
         ask(speech, text);
@@ -250,7 +241,7 @@ What stop number do you want to hear about?`
             requests: []
         });
 
-        ask([`Done. I've forgotten all the stops you've talked about.`], [`Done. I've forgotten all the stops you've talked about.`])
+        ask(['Done. I\'ve forgotten all the stops you\'ve talked about.'], ['Done. I\'ve forgotten all the stops you\'ve talked about.']);
     }
 
     function forgetBus() {
@@ -261,7 +252,7 @@ What stop number do you want to hear about?`
             requests: requests
         });
 
-        ask([`Done. I've forgotten about route ${which}.`], [`Done. I've forgotten about route ${which}.`])
+        ask([`Done. I've forgotten about route ${which}.`], [`Done. I've forgotten about route ${which}.`]);
     }
 
     function forgetStop() {
@@ -272,7 +263,7 @@ What stop number do you want to hear about?`
             requests: requests
         });
 
-        ask([`Done. I've forgotten about stop number ${spacedOut(which)}.`], [`Done. I've forgotten about stop number ${which}.`])
+        ask([`Done. I've forgotten about stop number ${spacedOut(which)}.`], [`Done. I've forgotten about stop number ${which}.`]);
     }
 
     function addStop() {
@@ -307,7 +298,7 @@ What stop number do you want to hear about?`
 
         // console.log(bus, stop);
         if (!stop) {
-            var msg = `Sorry, I didn't get the stop number.`
+            var msg = 'Sorry, I didn\'t get the stop number.';
             ask([msg], [msg]);
             return;
         }
@@ -405,13 +396,13 @@ What stop number do you want to hear about?`
             // console.log(howSoon);
             // console.log('how soon', howSoonMin)
             if (howSoonMin > 120) {
-                text.push(`${getRouteName(info.bus)} isn't scheduled at ${getStopName(info.stop)} within the next couple of hours.`)
-                speech.push(`${getRouteName(info.bus, true)} isn't scheduled at ${getStopName(info.stop, true)} within the next couple of hours.`)
+                text.push(`${getRouteName(info.bus)} isn't scheduled at ${getStopName(info.stop)} within the next couple of hours.`);
+                speech.push(`${getRouteName(info.bus, true)} isn't scheduled at ${getStopName(info.stop, true)} within the next couple of hours.`);
                 return;
             }
 
-            text.push(`${getRouteName(info.bus)} ${info.realtime ? 'is leaving' : 'should leave'} ${howSoon} from ${getStopName(info.stop)}.`)
-            speech.push(`${getRouteName(info.bus, true)} ${info.realtime ? 'is leaving' : 'should leave'} ${howSoon} from ${getStopName(info.stop, true)}.`)
+            text.push(`${getRouteName(info.bus)} ${info.realtime ? 'is leaving' : 'should leave'} ${howSoon} from ${getStopName(info.stop)}.`);
+            speech.push(`${getRouteName(info.bus, true)} ${info.realtime ? 'is leaving' : 'should leave'} ${howSoon} from ${getStopName(info.stop, true)}.`);
 
             if (saveForFuture) {
                 storeRequestTime(now, info.stop, info.bus);
@@ -445,7 +436,7 @@ What stop number do you want to hear about?`
 
     function askWhichBusAtStop(stop, busList) {
         busList.sort(function(a, b) {
-            return +a < +b ? -1 : 1
+            return +a < +b ? -1 : 1;
         });
 
 
@@ -546,7 +537,7 @@ What stop number do you want to hear about?`
         var forCtrain = transit.ctrainStops[stopNum];
 
         if (forCtrain) {
-            return `the ${forCtrain.name} station ${forSpeech ? '' : `(stop ${stopNum})`} heading ${getHeading(forCtrain.dir)}`
+            return `the ${forCtrain.name} station ${forSpeech ? '' : `(stop ${stopNum})`} heading ${getHeading(forCtrain.dir)}`;
         }
 
         return forSpeech ? `stop ${spacedOut(stopNum)}` : `stop ${stopNum}`;
@@ -604,7 +595,7 @@ What stop number do you want to hear about?`
 
 
     function askWithoutWhatElse(speech, text) {
-        ask(speech, text, true)
+        ask(speech, text, true);
     }
 
     function ask(speech, text, doNotAddWhatElse) {
@@ -618,8 +609,8 @@ What stop number do you want to hear about?`
             speech: '<speak>' + speech + '</speak>',
             text: text
         }));
-        console.log('Text:', text)
-        console.log('Speech:', speech)
+        console.log('Text:', text);
+        console.log('Speech:', speech);
     }
 
     function addWhatElse(speech, text) {
@@ -627,7 +618,7 @@ What stop number do you want to hear about?`
             'What other stop number do you want to know about?',
             'If you are done, just say "Goodbye"!',
             'What else can I tell you?'
-        ]
+        ];
         var max = msgs.length;
         var msg = msgs[Math.floor(Math.random() * (max - 1))];
 
@@ -644,15 +635,15 @@ What stop number do you want to hear about?`
         //    <say-as interpret-as="characters">${spacedOut(userId)}</say-as>
         var speech = [userId !== 'sandbox' ?
             `Your user ID is ${spacedOut(userId)}<break time="1s"/> (Wow! That was quite a mouthful!)` :
-            `You are using the sandbox, you don't have an ID.`
+            'You are using the sandbox, you don\'t have an ID.'
         ];
 
         var text = [userId !== 'sandbox' ?
             `Your user ID is ${userId}.` :
-            `You are using the sandbox, you don't have an ID.`
+            'You are using the sandbox, you don\'t have an ID.'
         ];
 
-        ask(speech, text)
+        ask(speech, text);
     }
 
     function getNearbyStops1() {
@@ -808,7 +799,7 @@ What stop number do you want to hear about?`
             //     askList);
 
         } else {
-            var msg = [`Sorry, I didn't catch that.`]
+            var msg = ['Sorry, I didn\'t catch that.'];
             ask(msg, msg);
         }
     }
@@ -818,7 +809,7 @@ What stop number do you want to hear about?`
             .replace(/NE/g, '') //North east') -- these are just extra noise when dealing with a small local area
             .replace(/NW/g, '') //'North west')
             .replace(/SW/g, '') //'South west')
-            .replace(/SE/g, '') //'South east')
+            .replace(/SE/g, ''); //'South east')
         if (onlyFirst) {
             return s.trim();
         }
@@ -831,7 +822,7 @@ What stop number do you want to hear about?`
             .replace(/BV/g, 'boulevard')
             .replace(/AV/g, 'avenue')
             .replace(/E\./g, 'east')
-            .replace(/W\./g, 'west')
+            .replace(/W\./g, 'west');
         return s;
     }
 
@@ -842,8 +833,8 @@ What stop number do you want to hear about?`
             speech.push(`From what I've learned, you are in ${userInfo.location}.`);
             text.push(`From what I've learned, you are in ${userInfo.location}.`);
         } else {
-            speech.push(`Sorry, I don't know where you are!`);
-            text.push(`Sorry, I don't know where you are!`);
+            speech.push('Sorry, I don\'t know where you are!');
+            text.push('Sorry, I don\'t know where you are!');
         }
 
         if (userInfo.zoneName) {
@@ -851,14 +842,14 @@ What stop number do you want to hear about?`
             text.push(`You are in the ${userInfo.zoneName} timezone.`);
 
             var now = moment.tz(userInfo.zoneName);
-            var time = now.format('h:mm a')
+            var time = now.format('h:mm a');
 
             speech.push(`It is about <say-as interpret-as="time" format="hms12">${time}</say-as> right now.`);
             text.push(`It is about ${time} right now.`);
 
         } else {
-            speech.push(`I don't know what timezone you are in.`);
-            text.push(`I don't know what timezone you are in.`);
+            speech.push('I don\'t know what timezone you are in.');
+            text.push('I don\'t know what timezone you are in.');
         }
 
         ask(speech, text);
@@ -886,11 +877,11 @@ What stop number do you want to hear about?`
         var array = [];
         Object.keys(locations).forEach(function (key) {
             var num = locations[key];
-            array.push(`${num} from ${key}`)
+            array.push(`${num} from ${key}`);
         });
         array.sort(function (a, b) {
             if (a === somewhere) return 1;
-            return a <= b ? -1 : 1
+            return a <= b ? -1 : 1;
         });
         if (array.length > 1) {
             array[array.length - 1] = 'and ' + array[array.length - 1];
@@ -912,7 +903,7 @@ What stop number do you want to hear about?`
 
     function testDevD() {
         var msg = `My host's name is: ${os.hostname()}.`;
-        ask([msg], [msg])
+        ask([msg], [msg]);
     }
 
     function getUserInfo() {
@@ -1003,7 +994,7 @@ What stop number do you want to hear about?`
             return fn();
         }
 
-        conv.ask(`I couldn't understand. Can you say that again and again?`);
+        conv.ask('I couldn\'t understand. Can you say that again?');
     });
 
 
@@ -1035,4 +1026,4 @@ What stop number do you want to hear about?`
 
 module.exports = {
     handlePost
-}
+};

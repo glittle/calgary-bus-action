@@ -3,7 +3,7 @@
 const Client = require('node-rest-client').Client;
 const ClientP = require('node-rest-client-promise').Client;
 
-const cheerio = require('cheerio')
+const cheerio = require('cheerio');
 
 // var GtfsRealtimeBindings = require('gtfs-realtime-bindings');
 // var requestSettings = {
@@ -15,7 +15,7 @@ const cheerio = require('cheerio')
 function testCalls() {
     const caller = new ClientP();
     const promises = [];
-    const url = `http://www.calgarytransit.com/nextride?stop_id=7712`;
+    const url = 'https://www.calgarytransit.com/nextride?stop_id=7712';
     promises.push(caller.getPromise(url));
 
     return Promise.all(promises)
@@ -35,14 +35,14 @@ function getBusPages(stopInfos, addingNewStop) {
 
     var stops = stopInfos
         .map(el => el.stop)
-        .filter((el, i, a) => i === a.indexOf(el));;
+        .filter((el, i, a) => i === a.indexOf(el));
     // console.log('need to get', stopInfos, stops);
 
-    var num = 1;
+    // var num = 1;
     stops.forEach(function(stop) {
         const url = `http://www.calgarytransit.com/nextride?stop_id=${stop}`;
         promises.push(caller.getPromise(url));
-        // console.log(`getting promise #${num++}`, url);
+        // console.log('getting', url);
     });
 
     return Promise.all(promises)
@@ -52,7 +52,7 @@ function getBusPages(stopInfos, addingNewStop) {
             results.forEach(function(result) {
                 const data = result.data;
                 const widgetRawHtml = data.toString('utf8');
-                const $ = cheerio.load(widgetRawHtml)
+                const $ = cheerio.load(widgetRawHtml);
                 var invalid = $('#nextRideResult').children().length === 1;
 
                 if (invalid) {
@@ -133,7 +133,7 @@ function getNearbyStops(coord, cb) {
     return Promise.all(promises)
         .then(results => {
             var forCb = {};
-            var resultNum = 1;
+            // var resultNum = 1;
             results.forEach(function(result) {
 
                 const data = result.data;
@@ -154,7 +154,7 @@ function getNearbyStops(coord, cb) {
                         return {
                             stop: i.Stop.Identifier,
                             desc: i.Stop.Description
-                        }
+                        };
                     }).splice(0, 15);
 
                     // console.log(data.stops, info)
@@ -178,9 +178,9 @@ function getNearbyStops(coord, cb) {
         });
 
 
-    caller.get(url, function(result) {
-        var data = result;
-    });
+    // caller.get(url, function(result) {
+    //     var data = result;
+    // });
 
 }
 
