@@ -5,9 +5,6 @@
   "private": true,
   "license": "Apache-2.0",
   "author": "Glen Little",
-  "engines": {
-    "node": "~4.2"
-  },
   "scripts": {
     "lint": "semistandard --fix \"**/*.js\"",
     "start": "node app.js",
@@ -26,20 +23,20 @@
     ]
   },
   "dependencies": {
-    "actions-on-google": "^1.0.0",
-    "body-parser": "^1.15.2",
-    "cheerio": "^1.0.0-rc.2",
-    "dotenv": "^4.0.0",
-    "express": "^4.13.4",
-    "firebase-admin": "^5.1.0",
-    "gtfs-realtime-bindings": "^0.0.4",
-    "moment": "^2.13.0",
-    "moment-timezone": "^0.5.4",
-    "node-mocks-http": "^1.6.4",
-    "node-rest-client": "^3.1.0",
-    "node-rest-client-promise": "^3.0.0"
+    "actions-on-google": "^3.0.0",
+    "body-parser": "^1.20.2",
+    "cheerio": "^1.0.0-rc.12",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "firebase-admin": "^11.5.0",
+    "gtfs-realtime-bindings": "^1.1.1",
+    "moment": "^2.29.4",
+    "moment-timezone": "^0.5.41",
+    "node-mocks-http": "^1.12.1",
+    "node-rest-client": "^3.1.1",
+    "node-rest-client-promise": "^3.1.1"
   },
   "devDependencies": {
-    "semistandard": "^11.0.0"
+    "semistandard": "^16.0.1"
   }
 }
